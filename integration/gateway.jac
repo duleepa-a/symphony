@@ -1,8 +1,16 @@
 """Validate requests and guard feature results at the application boundary."""
 sv {
-    import from contracts { DashboardState, OperationEnvelope, OperationError }
+    import from contracts {
+        DashboardState,
+        OperationEnvelope,
+        OperationError,
+        Evidence,
+        Dependency
+    }
     import from catalog { initial_dashboard_state }
     import from integration.ports { get_ports }
+
+    import from integration.evidence { supports_dependency }
 
     glob SERVICE_IDS = [
              "frontend",
@@ -43,21 +51,21 @@ sv {
             or source == target {
                 return False;
             }
-            for evidence_id in ids {
-                supported = False;
-                for observation in evidence {
-                    trace = field(observation, "observation", {});
-                    if field(observation, "id", "") == evidence_id
-                    and field(observation, "tool", "") == "trace_requests"
-                    and field(observation, "simulation_run_id", "") == run_id
-                    and field(trace, "source_id", "") == source
-                    and field(trace, "target_id", "") == target {
-                        supported = True;
-                    }
-                }
-                if not supported {
-                    return False;
-                }
+            records = [
+                Evidence(
+                    id=field(item, "id", ""),
+                    tool=field(item, "tool", ""),
+                    service_id=field(item, "service_id", ""),
+                    observation=field(item, "observation", {}),
+                    simulation_run_id=field(item, "simulation_run_id", "")
+                ) for item in evidence
+            ];
+            if not supports_dependency(
+                Dependency(source_id=source, target_id=target, evidence_ids=ids),
+                records,
+                run_id
+            ) {
+                return False;
             }
         }
         return True;

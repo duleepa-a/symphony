@@ -61,4 +61,4 @@ JacHammer is a separate hosting CLI. This machine previously used a compatibilit
 
 ## Feature scope
 
-The initial dashboard contains six services and five documented dependencies. Feature exports from Members 1 and 2 must be bound in `integration/bindings.jac` to enable live simulation, scanning, investigation, impact, and recovery. Unbound features report unavailable status. See [integration handoff](MEMBER3_INTEGRATION.md).
+The initial dashboard contains six services and five documented dependencies. Feature exports from Members 1 and 2 must be bound in `integration/bindings.jac` to enable live simulation, scanning, investigation, impact, and recovery. Unbound features report unavailable status. See [integration handoff](DASHBOARD_INTEGRATION.md).

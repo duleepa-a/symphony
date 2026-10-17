@@ -10,7 +10,13 @@ import from jaclang.byllm.lib {
     OutputConversionError,
     RateLimitError,
 }
-import from contracts { InvestigationResult, OperationEnvelope, OperationError, }
+import from contracts {
+    Dependency,
+    Evidence,
+    InvestigationResult,
+    OperationEnvelope,
+    OperationError,
+}
 import from .tools {
     check_service_health_tool,
     get_service_logs_tool,

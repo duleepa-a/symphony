@@ -187,10 +187,10 @@ The investigator can access only the three diagnostic operations. It cannot acce
 
 | Time | Parallel implementation outcome |
 | --- | --- |
-| Hours 0–2 | Member 1 builds deterministic simulation and diagnostics; Member 2 builds OSV and Investigator modules; Member 3 builds interactive dashboard state and fixture adapters |
+| Hours 0–2 | Member 1 builds deterministic simulation and diagnostics; Member 2 builds OSV and Investigator modules; Dashboard integration owner builds interactive dashboard state and fixture adapters |
 | Hours 2–4 | Each member verifies their module independently against frozen contracts and supplies fixtures plus integration notes |
-| Hour 4 | First integration checkpoint: Member 3 connects completed module APIs through the shared operation layer |
-| Hours 4–6 | Members 1 and 2 fix module defects in their own branches while Member 3 completes live UI flows and stale-run handling |
+| Hour 4 | First integration checkpoint: Dashboard integration owner connects completed module APIs through the shared operation layer |
+| Hours 4–6 | Members 1 and 2 fix module defects in their own branches while Dashboard integration owner completes live UI flows and stale-run handling |
 | Hour 6 | Second integration checkpoint: verify P0 and the Auth and Payment incident paths end to end |
 | Hours 6–8 | Harden error states, reset behavior, responsive UI, contract validation, and automated checks; implement P2 only if P0 and P1 are stable |
 

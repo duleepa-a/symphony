@@ -4,9 +4,9 @@ Agentic Reliability & Security Intelligence
 
 > Uncover hidden dependencies. Investigate failures. Expose vulnerabilities.
 
-SYMPHONY is a Jac 0.34.19 full-stack foundation for investigating a simulated six-service topology. The service inventory is simulated. Production advisory lookups and model investigation become live only when the corresponding feature implementations are integrated.
+SYMPHONY is a Jac 0.34.19 full-stack application for investigating a simulated six-service topology. The service inventory is simulated. OSV advisory lookups use the real API; the bounded Gemini Investigator uses the simulator’s real diagnostic tools.
 
-## Member 3 dashboard
+## Dashboard
 
 The dashboard now provides:
 
@@ -18,7 +18,7 @@ The dashboard now provides:
 - Run/request/service guards that reject stale responses after reset, a new incident, or selection changes.
 - Keyboard-visible focus, a skip link, live status feedback, reduced-motion support, and a horizontally scrollable graph on narrow screens.
 
-**Integration status:** this branch contains no Member 1 simulation modules or Member 2 scanner/Investigator modules. Production returns explicit `not_implemented` responses for those capabilities. It does not substitute fixtures or invoke the old inline Investigator against unavailable diagnostics. Complete the handoff in `integration/bindings.jac` when those typed exports are available. See [Member 3 integration](docs/MEMBER3_INTEGRATION.md).
+**Integration status:** Member 1’s simulator, diagnostics, impact, and recovery modules and Member 2’s scanner and Investigator are connected through `integration/bindings.jac`. No production port uses fixture data. Accepted trace-backed discoveries persist in the public simulation graph and affect impact analysis. Reset creates a new run and clears discoveries/evidence. See [integration details](docs/DASHBOARD_INTEGRATION.md).
 
 ## Run locally
 
@@ -47,7 +47,7 @@ set +a
 jac start --dev main.jac
 ```
 
-The existing bounded Gemini declaration remains in `operations.jac` until Member 2's module is available, as required by the work plan. Model and diagnostic configuration alone does not connect an Investigator implementation. Public wrappers use the production feature bindings; no model calls are made when the feature is unbound.
+The bounded Gemini declaration lives in `investigation/agent.jac`. Model/provider configuration uses the existing `LLM_MODEL`, `LLM_FALLBACK_MODEL`, and `GOOGLE_API_KEY` settings. Provider failures return explicit failed envelopes. Deterministic verification uses MockLLM and does not consume Gemini quota; live Gemini response quality has not been verified during integration.
 
 ## Architecture
 
@@ -62,14 +62,21 @@ The existing bounded Gemini declaration remains in `operations.jac` until Member
 | `integration/gateway.jac` | Request validation, response checks, run and trace-evidence validation |
 | `integration/ports.jac` | Injectable feature contracts for production and isolated tests |
 | `integration/bindings.jac` | Single production composition root for Member 1/2 exports |
+| `integration/*_adapter.jac` | Payload translation, short simulator locks, serialized Investigator sessions and run-safe discovery acceptance |
+| `simulation/` | Private deterministic incidents, diagnostics, public known graph, impact and copied-state recovery |
+| `security/` and `investigation/` | Real OSV transport, normalization, bounded byLLM tools and evidence validation |
 | `contracts.jac` | Unchanged shared integration records |
 
 State flows down through typed props; actions flow up through callbacks. Result decoding stays out of visual components. External requests, feature execution, and model access stay server-side. No additional frontend or backend framework is introduced.
 
 ## Verification
 
+The client model suite must remain at `dashboard/models/view_models.cl.test.jac`: Jac 0.34.19’s Bun runner emits a standalone test harness without compiling its relative client-module dependencies. Moving the suite to `tests/` was verified to fail all nine cases with `Cannot find module '../dashboard/models/view_models.js'`. The matching annex filename is required; its test cases use descriptive names without ownership prefixes. Standalone suites and preview helpers in `tests/` use descriptive filenames.
+
 ```sh
-jac test tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac -v
+JAC_TEST_JOBS=0 jac test tests/feature_integration_tests.jac tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac investigation/agent.jac investigation/validation.jac simulation/fixtures.jac
+# Optional real OSV acceptance (no Gemini call):
+RUN_LIVE_OSV_TESTS=1 jac test security/osv.jac --test_name "real OSV lookup is available when explicitly enabled"
 jac fmt dashboard integration operations.jac tests --check
 jac check main.jac
 jac check . --nowarn
@@ -78,7 +85,7 @@ jac build --client web
 
 Components explicitly return JSX for Jac 0.34.19 compatibility. The presentation test annex (`dashboard/models/view_models.cl.test.jac`) runs with the client module under Jac’s Bun runner; backend tests run on the server. Keep this convention in atoms, molecules, organisms, pages, and preview components.
 
-The tests exercise input validation, unbound features, fixture incident/reset adapters, scan error classes, trace-supported discovery, stale-response guards, recovery non-mutation, and provider exceptions without model/API access.
+The suites exercise feature-owner tests plus real cross-feature incident/reset flows, MockLLM discovery through native trace spans, discovery persistence into impact analysis, reset races, scanner payload translation, provider errors, and client request guards. `JAC_TEST_JOBS=0` avoids Jac 0.34.19’s nondeterministic parallel collection of imported test annexes. Simulation state is process-local: run one server process for this implementation; shared persistence and multi-worker deployment are outside this integration.
 
 For interactive verification against fixtures, stop the main server and run:
 
@@ -90,7 +97,7 @@ Open [localhost:8010](http://localhost:8010). This separate application is visib
 
 ## Truthfulness rules
 
-- The inventory is simulated; real OSV lookups require Member 2's scanner.
+- The inventory is simulated; advisories come from Member 2’s real OSV scanner.
 - API failures never appear as verified zero-vulnerability results.
 - The hidden Payment-to-Auth dependency is absent from initial state.
 - Discovered relationships need matching request-trace evidence for the active run.

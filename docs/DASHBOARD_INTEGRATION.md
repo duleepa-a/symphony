@@ -1,15 +1,15 @@
-# Member 3 integration handoff
+# Dashboard integration handoff
 
 ## Implemented boundary
 
-`operations.jac` retains all original operation names and signatures. `contracts.jac` and the team's `jac.lock` are unchanged. No feature-owner directories are modified.
+`operations.jac` retains all original operation names and signatures. `contracts.jac` and the team's `jac.lock` are unchanged. The feature-owner changes are limited to shared native-span validation, stricter simulator evidence acceptance, and explicit nested byLLM type imports required by Jac 0.34.19.
 
 `FeaturePorts` separates the dashboard/application boundary from feature implementations:
 
 - `dashboard`: optional `Callable[[], DashboardState]`.
 - `handlers`: operation-name to synchronous `Callable[..., OperationEnvelope]`.
 
-Bind actual exports in `integration/bindings.jac`. Production currently returns an empty `FeaturePorts` because those modules are absent from this branch. The gateway returns the initial catalog only when a dashboard provider is unbound. An installed provider that fails is not silently replaced with healthy data.
+Actual feature exports are bound in `integration/bindings.jac`. The simulator adapter serializes short state operations. Security adapters translate findings/advisory IDs and per-package errors without changing completion status. The Investigator adapter binds real diagnostic tools, supplies only documented topology and visible states, attaches actual evidence, and persists validated discoveries in the simulator. The gateway returns the initial catalog only when a dashboard provider is unbound. An installed provider that fails is not silently replaced with healthy data.
 
 Use explicit imports at the handoff; do not dynamically discover modules, fall back to fixture data, or rename the public endpoints. Synchronous feature handlers should encapsulate their own async client execution, or the gateway must be deliberately extended to await async ports before binding them. The current port contract is synchronous.
 
@@ -24,7 +24,7 @@ Use explicit imports at the handoff; do not dynamically discover modules, fall b
 | `scan_service_dependencies` | Member 2 scanner |
 | `analyze_security_impact`, `preview_recovery` | Member 1 impact/recovery exports |
 
-A feature can be bound independently. Keep the others absent until ready. Move the existing inline byLLM declaration out of `operations.jac` only after Member 2 supplies its replacement, as specified in WORK.md.
+All ports are connected. The duplicate inline byLLM declaration has been removed from `operations.jac`; `investigation/agent.jac` is the sole production Investigator.
 
 ## Payloads consumed by the dashboard
 
@@ -52,9 +52,12 @@ Every discovered relationship must reference an Evidence record in `data.evidenc
 - `id` appears in `evidence_ids`;
 - `tool` is `trace_requests`;
 - `simulation_run_id` matches the current snapshot;
-- `observation.source_id` and `observation.target_id` match the proposed relationship.
+- flat `observation.source_id`/`target_id` match, or a native span shows the corresponding outgoing/incoming peer for the inspected service;
+- native span outcomes are `ok`, `timeout`, or `error_503`; `not_attempted` cannot establish a relationship.
 
-The gateway rejects unsupported or stale discoveries. Adapt nested trace formats to these explicit source/target observations at the feature boundary after agreeing the shape with Member 1/2. The dashboard merges accepted discovered relationships into its visible graph without mutating the simulator's private graph.
+`integration/evidence.jac` supplies the same matching rule to the gateway, feature validator, and simulator acceptance path. Every cited ID must match. Native observations remain intact; no evidence or hidden edge is invented by an adapter.
+
+Investigator sessions are serialized because the supplied tool recorder is process-local. Diagnostic calls check the captured run before reading state. Network/model execution does not hold the simulator lock, so reset can proceed. On return, validation and discovery acceptance run under the simulator lock with a fresh run check. Stale investigations cannot populate a later run. Discoveries are idempotent when an edge is already known. Impact reads the resulting known graph; recovery remains a copied-state simulation.
 
 ### Impact and recovery
 
@@ -70,8 +73,12 @@ User actions and authoritative dashboard snapshots clear Jac 0.34.19’s RPC rea
 
 The gateway independently checks the run before and after feature execution. This is a defensive adapter check, not a replacement for the simulator's concurrency or evidence lifecycle rules.
 
-## Verification and remaining checkpoint
+## Verification
 
-`tests/dashboard_fixtures.jac` contains deterministic **test doubles**, not Member 1/2 implementations. `dashboard_preview.jac` explicitly activates them and displays a fixture banner. `main.jac` never imports the preview entry or its fixture providers. Explicit `sv` blocks keep feature execution and test providers on the server. Presentation helpers are explicitly client-side in `view_models.cl.jac`; their client test annex runs under Bun.
+The client model suite must remain at `dashboard/models/view_models.cl.test.jac`: Jac 0.34.19’s Bun runner emits a standalone test harness without compiling its relative client-module dependencies. Moving the suite to `tests/` was verified to fail all nine cases with `Cannot find module '../dashboard/models/view_models.js'`. The matching annex filename is required; its test cases use descriptive names without ownership prefixes. Standalone suites and preview helpers in `tests/` use descriptive filenames.
 
-After integrating real feature branches, rerun Jac checks, tests, client build, HTTP operation checks, and both incident workflows in the browser. Real OSV transport, live Gemini quality, and real simulator reset/evidence behavior remain the feature owners' acceptance gates; fixture passes do not establish those capabilities.
+`tests/feature_integration_tests.jac` exercises real production ports with both incidents, native diagnostic evidence, MockLLM discovery, persistent graph/impact updates, non-mutating recovery, reset races, scanner translation, and authentication failures. Existing feature and dashboard tests remain available. Use the serial command in README to avoid Jac 0.34.19’s imported-annex collection ordering issue.
+
+Real OSV transport and HTTP advisory serialization were verified against the catalog’s exact lodash version. Live Gemini quality remains unverified; deterministic Investigator acceptance uses MockLLM without spending quota.
+
+`tests/dashboard_fixtures.jac` remains an explicitly labeled UI test double, activated only by `dashboard_preview.jac`. Production does not bind those fixture providers. Presentation helpers and their test annex remain in the current atomic dashboard architecture.
