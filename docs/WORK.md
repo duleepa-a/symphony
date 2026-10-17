@@ -285,3 +285,21 @@ No feature implementation depends on another member's branch. Only Dashboard int
 ## Phase 2
 
 The Security Analyst and Recovery agents are planned in [AGENTS_PLAN.md](AGENTS_PLAN.md). WP0 (shared contracts, operation names, gateway mapping, and baseline fixes) is applied on `main`; WP1 and WP2 build against those contracts in parallel.
+
+
+### Dashboard and agent integration implementation
+
+- [x] Keep the accepted WP0 records and operation names unchanged.
+- [x] Add typed assessment/proposal presentation, advisory/evidence citations, model/deterministic labels, incomplete coverage, loading/empty/failed states and wrong-repair outcomes.
+- [x] Keep the atomic dashboard architecture; reuse a deterministic comparison molecule.
+- [x] Add explicit agent ports, a fresh session per request and copied read-only fact snapshots.
+- [x] Chain the latest scan and completed evidence-backed investigation through a run-scoped repository.
+- [x] Validate citations, deterministic dependent reach, supported actions and simulator verification.
+- [x] Reject stale run, request, input and topology revisions, and clear stored/UI output on reset.
+- [x] Keep deterministic/manual fallback available when a model operation fails.
+- [x] Add MockLLM and concurrent-session tests with no paid model calls.
+- [x] Bind the actual Security Analyst and Recovery feature exports and action-aware simulator callbacks from `origin/feat/agents-member1`.
+- [x] Verify both incidents end-to-end with actual agent exports and tools using MockLLM and offline OSV transport.
+- [ ] Perform separately configured live-provider quality and deployment acceptance.
+
+The actual feature exports are now connected by `integration/live_agents.sv.jac`. [Agent integration](AGENT_INTEGRATION.md) documents production composition, ContextVar session isolation, verification and Jac 0.34.19's narrow recovery model schema. Both incidents are covered through the production gateway with MockLLM; live Gemini quality and JacHammer deployment remain unverified.

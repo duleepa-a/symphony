@@ -9,6 +9,27 @@ glob INCIDENT_ROOT_FAULTS: dict[str, str] = {
          "payment_outage": "payment"
      };
 
+# Private: the kind of fault behind each incident. It decides which repair works
+# and is never serialized by diagnostics, previews, or agents.
+glob INCIDENT_FAULT_KINDS: dict[str, str] = {
+         "normal": "",
+         "auth_outage": "crashed_process",
+         "payment_outage": "bad_release"
+     };
+
+# Public repair catalog. Descriptions never say which repair fits which fault.
+glob REPAIR_ACTIONS: dict[str, str] = {
+         "restart": "Restart the service process.",
+         "rollback": "Roll the service back to its previous release.",
+         "failover": "Shift traffic to a standby replica of the service."
+     };
+
+# Private: repairs that clear each fault kind. Failover clears neither incident.
+glob EFFECTIVE_REPAIRS: dict[str, list[str]] = {
+         "crashed_process": ["restart"],
+         "bad_release": ["rollback"]
+     };
+
 def true_dependencies -> list[Dependency] {
     # Private: documented links plus the hidden Payment -> Auth dependency.
     return documented_dependencies() + [

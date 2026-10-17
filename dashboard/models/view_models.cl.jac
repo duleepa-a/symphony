@@ -12,7 +12,9 @@ obj:pub RequestScope {
             "investigation": 0,
             "scan": 0,
             "impact": 0,
-            "recovery": 0
+            "recovery": 0,
+            "security_analysis": 0,
+            "recovery_agent": 0
         };
 }
 
@@ -82,7 +84,8 @@ obj:pub ImpactView {
         dependents: list[str] = [],
         relationships: list[str] = [],
         exposure: str = "",
-        priority: str = "unknown";
+        priority: str = "unknown",
+        source: str = "simulation";
 }
 
 obj:pub RecoveryRow {
@@ -95,7 +98,9 @@ obj:pub RecoveryView {
     has feedback: PanelStatus = PanelStatus(),
         repair: str = "",
         rows: list[RecoveryRow] = [],
-        outcome: str = "";
+        outcome: str = "",
+        source: str = "simulation",
+        verification_note: str = "";
 }
 
 def:pub value(raw: dict[str, any] | None, key: str, fallback: any = None) -> any {
@@ -103,6 +108,35 @@ def:pub value(raw: dict[str, any] | None, key: str, fallback: any = None) -> any
         return fallback;
     }
     return raw[key] if key in raw else fallback;
+}
+
+def:pub operation_envelope(raw: dict[str, any]) -> OperationEnvelope {
+    problem = value(raw, "error", None);
+    return {
+        "status": text(value(raw, "status", "failed")),
+        "data": value(raw, "data", {}),
+        "error": {
+            "code": text(value(problem, "code", "assessment_step_failed")),
+            "message": text(value(problem, "message", "Assessment step failed."))
+        }
+            if problem
+            else None
+    } as OperationEnvelope;
+}
+
+def:pub service_states(snapshot: DashboardState) -> dict[str, str] {
+    return {service.id: service.state for service in snapshot.services};
+}
+
+def:pub newly_unhealthy(
+    previous: dict[str, str], current: dict[str, str]
+) -> list[str] {
+    return [
+        service_id
+        for (service_id, state) in current.items()
+        if state in ["down", "degraded"]
+        and previous.get(service_id, "healthy") not in ["down", "degraded"]
+    ];
 }
 
 def:pub dashboard_is_valid(raw: any) -> bool {
@@ -288,6 +322,7 @@ def:pub impact_view(result: OperationEnvelope) -> ImpactView {
         if isinstance(exposure, list)
         else text(exposure);
     view.priority = text(value(result.data, "priority", "unknown"));
+    view.source = text(value(result.data, "analysis_source", "simulation"));
     return view;
 }
 
@@ -300,6 +335,8 @@ def:pub recovery_view(result: OperationEnvelope) -> RecoveryView {
     view.outcome = text(
         value(result.data, "outcome", "Verification outcome unavailable.")
     );
+    view.source = text(value(result.data, "analysis_source", "simulation"));
+    view.verification_note = text(value(result.data, "verification_note", ""));
     before = value(result.data, "before", []);
     after = value(result.data, "after", []);
     for item in before {
@@ -397,4 +434,90 @@ def:pub overview_summary(
         ),
         vulnerability_findings=sum(findings.values())
     );
+}
+
+
+obj:pub AssessedFindingView {
+    has advisory_id: str,
+        package: str,
+        risk: str,
+        citations: list[str] = [];
+}
+
+obj:pub SecurityAssessmentView {
+    has feedback: PanelStatus = PanelStatus(),
+        findings: list[AssessedFindingView] = [],
+        dependents: list[str] = [],
+        priority: str = "unknown",
+        rule_priority: str = "unknown",
+        priority_lower: bool = False,
+        explanation: str = "",
+        scan_status: str = "unknown",
+        source: str = "model";
+}
+
+obj:pub ServiceRiskView {
+    has service_id: str,
+        service_name: str,
+        scan_status: str = "failed",
+        assessment_status: str = "failed",
+        finding_count: int = 0,
+        high_finding_count: int = 0,
+        priority: str = "unknown";
+}
+
+obj:pub RecoveryProposalView {
+    has feedback: PanelStatus = PanelStatus(),
+        target: str = "",
+        action: str = "",
+        rationale: str = "",
+        citations: list[str] = [],
+        preview: RecoveryView = RecoveryView();
+}
+
+def:pub security_assessment_view(result: OperationEnvelope) -> SecurityAssessmentView {
+    view = SecurityAssessmentView(feedback=status_view(result));
+    if not has_result(view.feedback.status) {
+        return view;
+    }
+    data = result.data;
+    view.priority = text(value(data, "priority", "unknown"));
+    view.rule_priority = text(value(data, "rule_based_priority", "unknown"));
+    view.priority_lower = bool(value(data, "priority_below_rule_based", False));
+    view.explanation = text(value(data, "explanation", ""));
+    view.dependents = strings(value(data, "dependents", []));
+    view.scan_status = text(value(data, "scan_status", "unknown"));
+    view.source = text(value(data, "analysis_source", "model"));
+    for item in value(data, "findings", []) {
+        view.findings.append(
+            AssessedFindingView(
+                advisory_id=text(value(item, "advisory_id", "")),
+                package=text(value(item, "package", "")),
+                risk=text(value(item, "risk", "")),
+                citations=strings(value(item, "cited_advisory_ids", []))
+            )
+        );
+    }
+    return view;
+}
+
+def:pub recovery_proposal_view(result: OperationEnvelope) -> RecoveryProposalView {
+    view = RecoveryProposalView(feedback=status_view(result));
+    if not has_result(view.feedback.status) {
+        return view;
+    }
+    data = result.data;
+    view.target = text(value(data, "target_service_id", ""));
+    view.action = text(value(data, "action", ""));
+    view.rationale = text(value(data, "rationale", ""));
+    view.citations = strings(value(data, "cited_evidence_ids", []));
+    preview = value(data, "preview", {});
+    view.preview = recovery_view(
+        {
+            "status": result.status,
+            "data": {** preview, "candidate_repair": view.action},
+            "error": None
+        } as OperationEnvelope
+    );
+    return view;
 }

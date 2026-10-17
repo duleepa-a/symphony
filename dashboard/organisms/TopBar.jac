@@ -1,6 +1,7 @@
 """Product identity and environment signal."""
 
-def:pub TopBar() -> JsxElement {
+def:pub TopBar(mode: str = "mock") -> JsxElement {
+    live = mode in ["real", "docker", "remote"];
     return
         <header className="topbar">
             <div className="brand-lockup">
@@ -19,7 +20,7 @@ def:pub TopBar() -> JsxElement {
             </div>
             <div className="environment-chip">
                 <span className="live-dot"></span>
-                Simulation workspace
+                {"Real services" if live else "Simulation workspace"}
             </div>
         </header>;
 }

@@ -8,16 +8,17 @@ The stretch release adds deterministic incidents and one evidence-driven Investi
 
 ## Current implementation baseline
 
-The initial foundation is complete and available for all three workstreams:
+The planned P0-P2 implementation is complete and integrated:
 
 - Jac project configuration, dependency lock, and application entry point.
-- Shared contracts and stable service IDs.
-- Six-service catalog, documented graph, and simulated package inventories.
-- Server operations with explicit placeholder statuses for unfinished behavior.
-- Responsive dashboard wired to `get_dashboard_state()`.
-- Gemini-backed `byLLM` configuration with environment-based key loading.
+- Shared contracts, stable service IDs, deterministic incidents, diagnostics, and recovery previews.
+- Six-service catalog, documented and discovered graph edges, and simulated package inventories.
+- Real OSV scanning with explicit success, partial-failure, and failure states.
+- Evidence-driven Gemini investigation and security/recovery agents.
+- Responsive dashboard wired to the live operation layer.
+- Optional `SYMPHONY_SERVICE_MODE=real` integration for locally hosted microservices.
 
-The remaining work is to replace placeholders with deterministic simulation, real OSV scanning, evidence-driven investigation, and complete dashboard interactions.
+The real-service integration is a local demonstration extension. In real mode, health, logs, traces, and investigation read the configured service URLs. Docker controls service lifecycle, so the dashboard intentionally disables simulated incident and reset controls instead of claiming to change real containers.
 
 ## Implementation constraints
 
@@ -35,7 +36,7 @@ The remaining work is to replace placeholders with deterministic simulation, rea
 | P1 | Deterministic incidents and Investigator Agent | Auth and Payment scenarios propagate correctly; investigation uses diagnostic tools and evidence |
 | P2 | Security impact and recovery preview | Graph impact uses known/discovered edges; recovery compares copied before/after state |
 
-P0 is the functional baseline. The existing scaffold and dashboard satisfy part of it; the real OSV scanner is the main remaining P0 feature. P1 begins after P0 passes its acceptance gate. P2 is optional. Unfinished actions must return an explicit `not_implemented` or `simulation_not_connected` status and must never claim success.
+P0 is the functional baseline, P1 is complete, and P2 is implemented. Any future unfinished action must return an explicit `not_implemented` or `simulation_not_connected` status and must never claim success.
 
 ## Product scope
 
@@ -103,7 +104,7 @@ Use small Jac modules with a single application entry point. Exact filenames may
 | OSV scanner | Server-side HTTP, normalization, timeout/error handling |
 | Investigator | Tool orchestration, evidence collection, candidates, and explanation |
 
-No React, Next.js, Express, separate Python application, database, authentication, Docker service, or Kubernetes cluster is in scope.
+No React, Next.js, Express, separate Python application, database, authentication, Docker service, or Kubernetes cluster is required by the core submission. The optional real-service demo uses a separate Docker Compose project and communicates only through configured HTTP endpoints.
 
 ## Frozen integration contracts
 
@@ -208,29 +209,29 @@ The investigator can access only the three diagnostic operations. It cannot acce
 
 ### P0 acceptance
 
-- [ ] The Jac project compiles and starts using the README command.
-- [ ] All six service nodes render at fixed positions.
-- [ ] Exactly five documented dependencies render initially.
-- [ ] The hidden dependency is absent from dashboard and network payloads.
-- [ ] A service can be selected and scanned.
-- [ ] At least one real server-side OSV request is observed.
-- [ ] Real findings, no-findings responses, partial failures, and complete failures are visibly distinct.
-- [ ] Missing severity is shown as unknown.
-- [ ] Incident and AI placeholders are honest and explicit if not connected.
+- [x] The Jac project compiles and starts using the README command.
+- [x] All six service nodes render at fixed positions.
+- [x] Exactly five documented dependencies render initially.
+- [x] The hidden dependency is absent from dashboard and network payloads.
+- [x] A service can be selected and scanned.
+- [x] At least one real server-side OSV request is observed.
+- [x] Real findings, no-findings responses, partial failures, and complete failures are visibly distinct.
+- [x] Missing severity is shown as unknown.
+- [x] Incident and AI placeholders are honest and explicit if not connected.
 
 ### P1 acceptance
 
-- [ ] Both incident scenarios produce the deterministic states in this plan.
-- [ ] The agent receives only diagnostic tool output.
-- [ ] The investigation timeline reflects actual tool calls.
-- [ ] Payment-to-Auth is proposed only with supporting trace evidence.
-- [ ] Reset clears incident state, investigation results, and discovered edges.
-- [ ] Results from an old simulation run are rejected after reset.
+- [x] Both incident scenarios produce the deterministic states in this plan.
+- [x] The agent receives only diagnostic tool output.
+- [x] The investigation timeline reflects actual tool calls.
+- [x] Payment-to-Auth is proposed only with supporting trace evidence.
+- [x] Reset clears incident state, investigation results, and discovered edges.
+- [x] Results from an old simulation run are rejected after reset.
 
 ### Implementation completion
 
-- [ ] All live operations validate inputs and return the frozen response envelope.
-- [ ] Module-level fixtures and checks run without requiring another member's branch.
-- [ ] No keys, tokens, generated caches, or build artifacts are committed.
-- [ ] Unfinished optional behavior remains disabled or returns an honest status.
-- [ ] The integrated application compiles and its core flows work at desktop and mobile widths.
+- [x] All live operations validate inputs and return the frozen response envelope.
+- [x] Module-level fixtures and checks run without requiring another member's branch.
+- [x] No keys, tokens, generated caches, or build artifacts are committed.
+- [x] Unfinished optional behavior remains disabled or returns an honest status.
+- [ ] The integrated application compiles and its core flows work at desktop and mobile widths (final responsive visual pass pending).

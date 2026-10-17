@@ -37,6 +37,11 @@ def:pub SecurityImpactPanel(
             />
             {has_result(result.feedback.status)
             and <div className="impact-results">
+                <p className="disclosure">
+                    {"Observed real-service health + known dependency graph"
+                        if result.source == "real_service_health"
+                        else "Deterministic simulation topology"}
+                </p>
                 <h3>Potentially exposed dependents</h3>
                 {result.dependents
                 and <ul>

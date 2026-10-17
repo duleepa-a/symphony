@@ -22,7 +22,7 @@ cd <repository root>
 jac install
 jac check main.jac
 jac check . --nowarn
-jac test tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac
+JAC_TEST_JOBS=0 jac test tests/feature_integration_tests.jac tests/agent_integration_tests.jac tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac investigation/agent.jac investigation/validation.jac simulation/fixtures.jac
 jac build --client web
 ```
 
@@ -45,6 +45,9 @@ jac start --dev main.jac
 
 Open [localhost:8000](http://localhost:8000). Use the addresses printed by Jac for the frontend and API. Stop the server with Ctrl+C. Do not commit `.env` or provider credentials.
 
+After changing server validation, diagnostic tools, agent bindings, or provider configuration, stop Jac with Ctrl+C and start it again. Refreshing the browser alone can leave imported server code from the previous process active. Restarting clears the process-local simulation and investigation results; trigger the incident and investigate again.
+
+
 ## Fixture verification
 
 Stop the main server before starting the separately labeled preview:
@@ -61,4 +64,4 @@ JacHammer is a separate hosting CLI. This machine previously used a compatibilit
 
 ## Feature scope
 
-The initial dashboard contains six services and five documented dependencies. Feature exports from Members 1 and 2 must be bound in `integration/bindings.jac` to enable live simulation, scanning, investigation, impact, and recovery. Unbound features report unavailable status. See [integration handoff](DASHBOARD_INTEGRATION.md).
+The initial dashboard contains six services and five documented dependencies. Simulation, diagnostics, OSV, Investigator, impact and manual recovery use their real feature exports. The new Security Analyst and Recovery agents await their feature-owner handoff; prerequisite and unavailable errors remain explicit. See [dashboard integration](DASHBOARD_INTEGRATION.md) and [agent integration](AGENT_INTEGRATION.md).

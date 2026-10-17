@@ -34,7 +34,8 @@ obj DashboardState {
     has services: list[Service] = [],
         dependencies: list[Dependency] = [],
         summary: DashboardSummary = DashboardSummary(),
-        simulation_run_id: str = "initial";
+        simulation_run_id: str = "initial",
+        service_mode: str = "mock";
 }
 
 obj OperationError {
@@ -104,7 +105,7 @@ sem AssessedFinding.cited_advisory_ids = "Advisory IDs from the current scan tha
 sem RecoveryProposal.action = "One action returned by list_repair_options.";
 sem RecoveryProposal.cited_evidence_ids = "Evidence IDs from the current investigation that support the chosen target.";
 
-sem InvestigationResult.status = "Investigation completion status. Use completed only when the conclusion is supported by diagnostic evidence.";
+sem InvestigationResult.status = "Investigation execution status, not service health. Use completed when diagnostic tools returned evidence, even when services are down or the cause remains uncertain. Provider failures are handled separately.";
 sem InvestigationResult.tool_timeline = "Ordered descriptions of diagnostic tool calls actually used during this investigation.";
 sem InvestigationResult.observed_evidence = "Concrete observations returned by diagnostic tools, without invented facts.";
 sem InvestigationResult.candidate_root_causes = "Plausible root causes ranked from strongest to weakest support.";

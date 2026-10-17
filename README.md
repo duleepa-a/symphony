@@ -18,7 +18,13 @@ The dashboard now provides:
 - Run/request/service guards that reject stale responses after reset, a new incident, or selection changes.
 - Keyboard-visible focus, a skip link, live status feedback, reduced-motion support, and a horizontally scrollable graph on narrow screens.
 
-**Integration status:** Member 1’s simulator, diagnostics, impact, and recovery modules and Member 2’s scanner and Investigator are connected through `integration/bindings.jac`. No production port uses fixture data. Accepted trace-backed discoveries persist in the public simulation graph and affect impact analysis. Reset creates a new run and clears discoveries/evidence. See [integration details](docs/DASHBOARD_INTEGRATION.md).
+**Integration status:** Member 1’s simulator, diagnostics, impact, and recovery modules and Member 2’s scanner and Investigator are connected through `integration/bindings.sv.jac`. No production port uses fixture data. Accepted trace-backed discoveries persist in the public simulation graph and affect impact analysis. Reset creates a new run and clears discoveries/evidence. See [integration details](docs/DASHBOARD_INTEGRATION.md).
+
+## Security Analyst and Recovery proposals
+
+The dashboard now includes model-labeled risk assessments beside deterministic priority, and repair proposals beside simulator verification. Scans and investigations are chained by simulation run; reset and replacement inputs invalidate dependent output. Agent sessions are independent and provider failures retain manual impact/recovery fallback.
+
+The Security Analyst and Recovery agents are connected to the production gateway. Security uses the latest service scan; Recovery uses the latest evidence-backed investigation and independently verified repair preview. See [agent integration and validation](docs/AGENT_INTEGRATION.md) for session isolation, failure handling and offline verification.
 
 ## Run locally
 
@@ -34,6 +40,9 @@ jac start --dev main.jac
 
 Open [localhost:8000](http://localhost:8000). Development mode uses a separate API port, normally 8001. Jac's Vite frontend may also advertise a LAN address.
 
+After changing server validation, diagnostic tools, agent bindings, or provider configuration, stop Jac with Ctrl+C and start it again. Refreshing the browser alone can leave imported server code from the previous process active. Restarting clears the process-local simulation and investigation results; trigger the incident and investigate again.
+
+
 Jac 0.34.19 does not support the newer `--frozen` install flag. The team's committed `jac.lock` is retained unchanged. In this runtime, the npm entry records a checksum rather than the contents of Bun's lockfile; obtain a teammate's matching `.jac/client/bun.lock` when exact npm-version alignment is needed. Avoid dependency updates while integrating features.
 
 ## Provider configuration
@@ -47,7 +56,7 @@ set +a
 jac start --dev main.jac
 ```
 
-The bounded Gemini declaration lives in `investigation/agent.jac`. Model/provider configuration uses the existing `LLM_MODEL`, `LLM_FALLBACK_MODEL`, and `GOOGLE_API_KEY` settings. Provider failures return explicit failed envelopes. Deterministic verification uses MockLLM and does not consume Gemini quota; live Gemini response quality has not been verified during integration.
+Production connects the Investigator, Security Analyst and Recovery agents. Their bounded Gemini declarations live in their respective `agent.jac` modules; the new agents share configuration in `agent_support/models.jac`. Model/provider configuration uses the existing `LLM_MODEL`, `LLM_FALLBACK_MODEL`, and `GOOGLE_API_KEY` settings. Provider failures return explicit failed envelopes. Deterministic verification uses MockLLM and does not consume Gemini quota; live Gemini response quality has not been verified during integration.
 
 ## Architecture
 
@@ -59,22 +68,45 @@ The bounded Gemini declaration lives in `investigation/agent.jac`. Model/provide
 | `dashboard/pages/SymphonyDashboard.jac` and its implementation annex | Page composition, state ownership, request orchestration |
 | `dashboard/models/view_models.cl.jac` | Typed presentation models, JSON decoding, request guards |
 | `operations.jac` | Stable public endpoint signatures; delegates to the gateway |
-| `integration/gateway.jac` | Request validation, response checks, run and trace-evidence validation |
-| `integration/ports.jac` | Injectable feature contracts for production and isolated tests |
-| `integration/bindings.jac` | Single production composition root for Member 1/2 exports |
-| `integration/*_adapter.jac` | Payload translation, short simulator locks, serialized Investigator sessions and run-safe discovery acceptance |
+| `integration/gateway.sv.jac` | Request validation, response checks, run and trace-evidence validation |
+| `integration/ports.sv.jac` | Injectable feature contracts for production and isolated tests |
+| `integration/bindings.sv.jac` | Single production composition root for real feature exports |
+| `integration/*_adapter.sv.jac` | Payload translation, short simulator locks, serialized Investigator sessions and run-safe discovery acceptance |
 | `simulation/` | Private deterministic incidents, diagnostics, public known graph, impact and copied-state recovery |
-| `security/` and `investigation/` | Real OSV transport, normalization, bounded byLLM tools and evidence validation |
+| `security/`, `investigation/`, `security_analyst/`, `recovery_agent/` | OSV transport, bounded byLLM agents, isolated tool sessions and evidence validation |
 | `contracts.jac` | Unchanged shared integration records |
 
 State flows down through typed props; actions flow up through callbacks. Result decoding stays out of visual components. External requests, feature execution, and model access stay server-side. No additional frontend or backend framework is introduced.
+
+### Automated assessment
+
+**Run full assessment** performs investigation, scans all six service inventories with OSV, runs a security assessment for each scan, and shows an all-service advisory/high-severity summary. Detailed impact and recovery results focus on the selected or most likely failed service. The dashboard also polls health every 10 seconds and starts the same workflow when it observes a new failure or another state change while failures remain. Identical automatic requests are deduplicated server-side to avoid repeated model calls.
+
+In real-service mode, impact combines the known dependency graph with observed container health. Recovery is intentionally non-mutating: it recommends an action and returns `not_applied` with the observed before-state unchanged until an operator acts and health is polled again. Mock mode retains deterministic before/after simulation.
+
+External monitoring can start the workflow through the public Jac function endpoint:
+
+```sh
+curl -X POST http://localhost:8001/function/monitoring_alert \
+  -H 'Content-Type: application/json' \
+  -d '{"service_id":"payment","state":"down","token":"replace-with-a-random-secret"}'
+```
+
+Set `SYMPHONY_WEBHOOK_TOKEN` to require the matching token. In real-service mode, deterministic scenario controls are not rendered; Docker or monitoring controls service state while Symphony polls, investigates, and displays the latest webhook-triggered assessment.
 
 ## Verification
 
 The client model suite must remain at `dashboard/models/view_models.cl.test.jac`: Jac 0.34.19’s Bun runner emits a standalone test harness without compiling its relative client-module dependencies. Moving the suite to `tests/` was verified to fail all nine cases with `Cannot find module '../dashboard/models/view_models.js'`. The matching annex filename is required; its test cases use descriptive names without ownership prefixes. Standalone suites and preview helpers in `tests/` use descriptive filenames.
 
 ```sh
-JAC_TEST_JOBS=0 jac test tests/feature_integration_tests.jac tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac investigation/agent.jac investigation/validation.jac simulation/fixtures.jac
+for suite in tests/feature_integration_tests.jac tests/agent_integration_tests.jac \
+  tests/agent_workflow_tests.jac tests/dashboard_integration_tests.jac \
+  dashboard/models/view_models.cl.jac recovery_agent/agent.jac \
+  recovery_agent/validation.jac security_analyst/agent.jac \
+  security_analyst/validation.jac investigation/agent.jac \
+  investigation/validation.jac simulation/fixtures.jac; do
+  SYMPHONY_SERVICE_MODE=mock JAC_TEST_JOBS=0 jac test "$suite" || break
+done
 # Optional real OSV acceptance (no Gemini call):
 RUN_LIVE_OSV_TESTS=1 jac test security/osv.jac --test_name "real OSV lookup is available when explicitly enabled"
 jac fmt dashboard integration operations.jac tests --check

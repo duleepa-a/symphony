@@ -236,3 +236,103 @@ test "invalid RPC snapshots cannot replace the displayed dashboard" {
         {"services": [], "dependencies": [], "simulation_run_id": "run-1"}
     );
 }
+
+test "automation helpers detect only newly unhealthy services and decode steps" {
+    previous = {"frontend": "healthy", "payment": "down"};
+    current = {"frontend": "down", "payment": "down"};
+    assert newly_unhealthy(previous, current) == ["frontend"];
+    decoded = operation_envelope(
+        {
+            "status": "failed",
+            "data": {},
+            "error": {"code": "fixture", "message": "Fixture failure"}
+        }
+    );
+    assert decoded.status == "failed";
+    assert decoded.error is not None and decoded.error.code == "fixture";
+}
+
+
+test "agent assessment keeps model and rule priorities separate with incomplete coverage" {
+    view = security_assessment_view(
+        envelope_fixture(
+            status="partial",
+            data={
+                "priority": "low",
+                "rule_based_priority": "high",
+                "priority_below_rule_based": True,
+                "scan_status": "partial",
+                "explanation": "Review incomplete coverage",
+                "findings": [
+                    {
+                        "advisory_id": "ADV-1",
+                        "package": "example",
+                        "risk": "Review the advisory",
+                        "cited_advisory_ids": ["ADV-1"]
+                    }
+                ]
+            }
+        )
+    );
+    assert view.feedback.status == "partial" and view.priority_lower;
+    assert view.priority == "low" and view.rule_priority == "high";
+    assert view.scan_status == "partial" and view.findings[0].citations == ["ADV-1"];
+    assert security_assessment_view(envelope_fixture(status="failed")).findings == [];
+}
+
+test "recovery proposal shows citations and actual failed verification" {
+    view = recovery_proposal_view(
+        envelope_fixture(
+            status="completed",
+            data={
+                "target_service_id": "catalog",
+                "action": "rollback",
+                "rationale": "Try the cited hypothesis",
+                "cited_evidence_ids": ["trace-1"],
+                "preview": {
+                    "before": [{"id": "payment", "state": "down"}],
+                    "after": [{"id": "payment", "state": "down"}],
+                    "outcome": "not_recovered"
+                }
+            }
+        )
+    );
+    assert view.target == "catalog" and view.action == "rollback";
+    assert view.preview.outcome == "not_recovered";
+    assert view.preview.rows[0].after == "down" and view.citations == ["trace-1"];
+    assert recovery_proposal_view(envelope_fixture(status="failed")).preview.rows == [];
+}
+
+test "new agent requests have independent guard counters" {
+    scope = RequestScope();
+    scope.request_ids["security_analysis"] += 1;
+    assert scope.request_ids["recovery_agent"] == 0;
+    assert scope.request_ids["scan"] == 0;
+    assert not request_is_current(
+        1,
+        1,
+        0,
+        scope.request_ids["security_analysis"],
+        "payment",
+        "payment",
+        "r",
+        "r",
+        "r"
+    );
+}
+
+test "zero-advisory assessments retain their deterministic source label" {
+    view = security_assessment_view(
+        envelope_fixture(
+            status="completed",
+            data={
+                "analysis_source": "deterministic",
+                "findings": [],
+                "priority": "high",
+                "rule_based_priority": "high"
+            }
+        )
+    );
+    assert view.source == "deterministic" and view.findings == [];
+    assert security_assessment_view(envelope_fixture(status="completed")).source == "model";
+}

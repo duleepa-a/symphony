@@ -4,6 +4,7 @@ import from unittest.mock { patch }
 import investigation.agent as agent;
 import from jaclang.byllm.lib { MockLLM, MockToolCall, AuthenticationError, ModelPool }
 import from contracts {
+    AssessedFinding,
     Dependency,
     Evidence,
     InvestigationResult,

@@ -1,14 +1,19 @@
 """Page orchestrator: owns state, delegates rendering and boundary decoding."""
 import from "@jac/runtime" { __jacClearCache }
+import from react { useEffect }
 import type from ...contracts { DashboardState, Dependency, OperationEnvelope }
-import from ...operations {
+sv import from ...operations {
     get_dashboard_state,
     start_incident,
     reset_incident,
     run_investigation,
     scan_service_dependencies,
     analyze_security_impact,
-    preview_recovery
+    preview_recovery,
+    run_security_analysis,
+    run_recovery_agent,
+    run_full_assessment,
+    get_latest_full_assessment
 }
 import from ..models.view_models {
     dashboard_is_valid,
@@ -19,6 +24,11 @@ import from ..models.view_models {
     InvestigationView,
     ImpactView,
     RecoveryView,
+    SecurityAssessmentView,
+    ServiceRiskView,
+    RecoveryProposalView,
+    security_assessment_view,
+    recovery_proposal_view,
     is_busy,
     has_result,
     status_view,
@@ -26,6 +36,9 @@ import from ..models.view_models {
     investigation_view,
     impact_view,
     recovery_view,
+    operation_envelope,
+    service_states,
+    newly_unhealthy,
     request_is_current,
     merge_dependencies,
     overview_summary,
@@ -53,46 +66,76 @@ def:pub SymphonyDashboard -> JsxElement {
         scan: ScanView = ScanView(),
         impact: ImpactView = ImpactView(),
         recovery: RecoveryView = RecoveryView(),
+        assessment: SecurityAssessmentView = SecurityAssessmentView(),
+        proposal: RecoveryProposalView = RecoveryProposalView(),
+        automation: PanelStatus = PanelStatus(),
+        service_risks: list[ServiceRiskView] = [],
         discovered: list[Dependency | DependencyView] = [],
-        findings: dict[str, int] = {};
-    # Mutable lifecycle state must remain current across awaits on Jac 0.34.19.
-    has request_scope: Ref[RequestScope] = Ref(RequestScope());
+        findings: dict[str, int] = {},
+        request_scope: Ref[RequestScope] = Ref(RequestScope()),
+        assessment_busy: Ref[bool] = Ref(False),
+        poll_busy: Ref[bool] = Ref(False),
+        observed_states: Ref[dict[str, str]] = Ref({}),
+        latest_assessment_id: Ref[str] = Ref("");
+
+    useEffect(
+        lambda {
+            interval = setInterval(lambda { pollHealth(); }, 10000);
+            return lambda { clearInterval(interval); };
+        },
+        []
+    );
 
     async can with entry {
         await loadDashboard();
+        await pollHealth();
     }
 
     async def loadDashboard -> None;
     def clearResults -> None;
     def selectService(service_id: str) -> None;
     async def changeIncident(reset: bool = False) -> None;
-    async def triggerIncident -> None {
+    async def triggerIncident {
         await changeIncident();
     }
-    async def resetSimulation -> None {
+    async def resetSimulation {
         await changeIncident(True);
     }
-    async def investigate -> None {
+    async def investigate {
         await perform("investigation");
     }
-    async def scanDependencies -> None {
+    async def scanDependencies {
         await perform("scan");
     }
-    async def analyzeImpact -> None {
+    async def analyzeImpact {
         await perform("impact");
     }
-    async def previewRecovery -> None {
+    async def previewRecovery {
         await perform("recovery");
     }
+    async def assessRisk {
+        await perform("security_analysis");
+    }
+    async def proposeRecovery {
+        await perform("recovery_agent");
+    }
+    async def runFullAssessment {
+        await assessAll("manual", selected_service, True);
+    }
+    async def assessAll(
+        trigger: str, service_id: str = "", force: bool = False
+    ) -> None;
+    def applyAssessment(result: OperationEnvelope) -> None;
+    async def pollHealth -> None;
     def setFeedback(operation: str, feedback: PanelStatus) -> None;
     async def perform(operation: str) -> None;
 
     edges = merge_dependencies(dashboard.dependencies, discovered) if dashboard else [];
-    changing = is_busy(incident.status);
+    changing = is_busy(incident.status) or is_busy(automation.status);
     return
         <div className="app-shell">
             <a className="skip-link" href="#dashboard-main">Skip to dashboard</a>
-            <TopBar/>
+            <TopBar mode={dashboard.service_mode if dashboard else "loading"}/>
             <main className="workspace" id="dashboard-main">
                 {loading
                 and <div className="loading-state" role="status">
@@ -126,6 +169,10 @@ def:pub SymphonyDashboard -> JsxElement {
                             on_reset={resetSimulation}
                             on_investigate={investigate}
                             investigation_busy={is_busy(investigation.feedback.status)}
+                            on_full_assessment={runFullAssessment}
+                            full_assessment_busy={is_busy(automation.status)}
+                            automation_feedback={automation}
+                            service_mode={dashboard.service_mode}
                         />
                         <InvestigationPanel result={investigation}/>
                         <SecurityPanel
@@ -135,6 +182,12 @@ def:pub SymphonyDashboard -> JsxElement {
                             disabled={changing}
                             on_service_change={selectService}
                             on_scan={scanDependencies}
+                            assessment={assessment}
+                            service_risks={service_risks}
+                            rule_priority={impact.priority
+                                if impact.priority != "unknown"
+                                else assessment.rule_priority}
+                            on_assess={assessRisk}
                         />
                         <SecurityImpactPanel
                             result={impact}
@@ -147,6 +200,11 @@ def:pub SymphonyDashboard -> JsxElement {
                             service_id={selected_service}
                             disabled={changing}
                             on_preview={previewRecovery}
+                            proposal={proposal}
+                            proposal_disabled={is_busy(investigation.feedback.status)
+                            or investigation.feedback.status != "completed"
+                            or not investigation.evidence}
+                            on_propose={proposeRecovery}
                         />
                     </section>
                 </>}
