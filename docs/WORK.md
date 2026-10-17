@@ -285,3 +285,20 @@ No feature implementation depends on another member's branch. Only Dashboard int
 ## Phase 2
 
 The Security Analyst and Recovery agents are planned in [AGENTS_PLAN.md](AGENTS_PLAN.md). WP0 (shared contracts, operation names, gateway mapping, and baseline fixes) is applied on `main`; WP1 and WP2 build against those contracts in parallel.
+
+
+### Dashboard and agent integration implementation
+
+- [x] Keep the accepted WP0 records and operation names unchanged.
+- [x] Add typed assessment/proposal presentation, advisory/evidence citations, model/deterministic labels, incomplete coverage, loading/empty/failed states and wrong-repair outcomes.
+- [x] Keep the atomic dashboard architecture; reuse a deterministic comparison molecule.
+- [x] Add explicit agent ports, a fresh session per request and copied read-only fact snapshots.
+- [x] Chain the latest scan and completed evidence-backed investigation through a run-scoped repository.
+- [x] Validate citations, deterministic dependent reach, supported actions and simulator verification.
+- [x] Reject stale run, request, input and topology revisions, and clear stored/UI output on reset.
+- [x] Keep deterministic/manual fallback available when a model operation fails.
+- [x] Add MockLLM and concurrent-session tests with no paid model calls.
+- [ ] Bind the actual Security Analyst and Recovery feature exports and action-aware simulator callbacks when those modules are handed off.
+- [ ] Verify both incidents end-to-end with the actual new agents, then perform separately configured live-provider acceptance.
+
+The two feature-owner agent directories are absent from this checkout. Production therefore uses explicit prerequisite/unavailable failures. [Agent integration](AGENT_INTEGRATION.md) documents the handoff protocol, test commands and Jac 0.34.19's narrow recovery model-schema requirement. Fixture and MockLLM verification do not mark the missing live agent acceptance complete.

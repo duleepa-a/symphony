@@ -1,14 +1,16 @@
 """Page orchestrator: owns state, delegates rendering and boundary decoding."""
 import from "@jac/runtime" { __jacClearCache }
 import type from ...contracts { DashboardState, Dependency, OperationEnvelope }
-import from ...operations {
+sv import from ...operations {
     get_dashboard_state,
     start_incident,
     reset_incident,
     run_investigation,
     scan_service_dependencies,
     analyze_security_impact,
-    preview_recovery
+    preview_recovery,
+    run_security_analysis,
+    run_recovery_agent
 }
 import from ..models.view_models {
     dashboard_is_valid,
@@ -19,6 +21,10 @@ import from ..models.view_models {
     InvestigationView,
     ImpactView,
     RecoveryView,
+    SecurityAssessmentView,
+    RecoveryProposalView,
+    security_assessment_view,
+    recovery_proposal_view,
     is_busy,
     has_result,
     status_view,
@@ -53,6 +59,8 @@ def:pub SymphonyDashboard -> JsxElement {
         scan: ScanView = ScanView(),
         impact: ImpactView = ImpactView(),
         recovery: RecoveryView = RecoveryView(),
+        assessment: SecurityAssessmentView = SecurityAssessmentView(),
+        proposal: RecoveryProposalView = RecoveryProposalView(),
         discovered: list[Dependency | DependencyView] = [],
         findings: dict[str, int] = {};
     # Mutable lifecycle state must remain current across awaits on Jac 0.34.19.
@@ -83,6 +91,12 @@ def:pub SymphonyDashboard -> JsxElement {
     }
     async def previewRecovery -> None {
         await perform("recovery");
+    }
+    async def assessRisk -> None {
+        await perform("security_analysis");
+    }
+    async def proposeRecovery -> None {
+        await perform("recovery_agent");
     }
     def setFeedback(operation: str, feedback: PanelStatus) -> None;
     async def perform(operation: str) -> None;
@@ -135,6 +149,11 @@ def:pub SymphonyDashboard -> JsxElement {
                             disabled={changing}
                             on_service_change={selectService}
                             on_scan={scanDependencies}
+                            assessment={assessment}
+                            rule_priority={impact.priority
+                                if impact.priority != "unknown"
+                                else assessment.rule_priority}
+                            on_assess={assessRisk}
                         />
                         <SecurityImpactPanel
                             result={impact}
@@ -147,6 +166,9 @@ def:pub SymphonyDashboard -> JsxElement {
                             service_id={selected_service}
                             disabled={changing}
                             on_preview={previewRecovery}
+                            proposal={proposal}
+                            proposal_disabled={is_busy(investigation.feedback.status)}
+                            on_propose={proposeRecovery}
                         />
                     </section>
                 </>}

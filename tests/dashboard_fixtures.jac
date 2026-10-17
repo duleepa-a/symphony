@@ -182,7 +182,7 @@ sv {
                     }
                 ],
                 "potential_exposure": "Fixture potential exposure through dependencies; no compromise has been established.",
-                "priority": "review"
+                "priority": "medium"
             }
         );
     }
@@ -219,6 +219,92 @@ sv {
         );
     }
 
+    def fixture_security_analysis(service_id: str) -> OperationEnvelope {
+        if fixture_case == "slow" {
+            time.sleep(2);
+        }
+        if fixture_case == "failed" {
+            return fixture_error();
+        }
+        if fixture_case == "not_implemented" {
+            return OperationEnvelope(
+                status="failed",
+                error=OperationError(
+                    code="security_analyst_not_connected",
+                    message="Fixture agent is unavailable."
+                )
+            );
+        }
+        findings: list[dict[str, any]] = [];
+        if fixture_case != "empty" {
+            findings = [
+                {
+                    "advisory_id": "FIXTURE-2026-001",
+                    "package": "fixture-package",
+                    "risk": "Fixture-only risk assessment; review the cited advisory.",
+                    "cited_advisory_ids": ["FIXTURE-2026-001"]
+                }
+            ];
+        }
+        return OperationEnvelope(
+            status="partial" if fixture_case == "partial" else "completed",
+            data={
+                "simulation_run_id": fixture_state.simulation_run_id,
+                "service_id": service_id,
+                "findings": findings,
+                "dependents": ["api_gateway", "frontend"],
+                "priority": "low",
+                "rule_based_priority": "medium",
+                "priority_below_rule_based": True,
+                "scan_status": "partial" if fixture_case == "partial" else "completed",
+                "explanation": "Fixture-only model-output presentation. The deterministic priority remains authoritative."
+            }
+        );
+    }
+    def fixture_recovery_agent() -> OperationEnvelope {
+        if fixture_case == "slow" {
+            time.sleep(2);
+        }
+        if fixture_case == "failed" {
+            return fixture_error();
+        }
+        if fixture_case == "not_implemented" {
+            return OperationEnvelope(
+                status="failed",
+                error=OperationError(
+                    code="recovery_agent_not_connected",
+                    message="Fixture agent is unavailable."
+                )
+            );
+        }
+        return OperationEnvelope(
+            status="completed",
+            data={
+                "simulation_run_id": fixture_state.simulation_run_id,
+                "target_service_id": "auth",
+                "action": "restart",
+                "rationale": "Fixture proposal cites the fixture investigation; no live model was used.",
+                "cited_evidence_ids": [f"trace-{fixture_state.simulation_run_id}"],
+                "preview": {
+                    "before": [
+                        {"id": item.id, "state": item.state}
+                        for item in fixture_state.services
+                    ],
+                    "after": [
+                        {
+                            "id": item.id,
+                            "state": item.state
+                                if fixture_case == "partial"
+                                else "healthy"
+                        } for item in fixture_state.services
+                    ],
+                    "outcome": "not_recovered"
+                        if fixture_case == "partial"
+                        else "no_incident" if fixture_case == "empty" else "recovered"
+                }
+            }
+        );
+    }
     def fixture_ports -> FeaturePorts {
         return FeaturePorts(
             dashboard=fixture_dashboard,
@@ -229,6 +315,8 @@ sv {
                 "scan_service_dependencies": fixture_scan,
                 "analyze_security_impact": fixture_impact,
                 "preview_recovery": fixture_recovery,
+                "run_security_analysis": fixture_security_analysis,
+                "run_recovery_agent": fixture_recovery_agent,
                 "check_service_health": fixture_diagnostic,
                 "get_service_logs": fixture_diagnostic,
                 "trace_requests": fixture_diagnostic

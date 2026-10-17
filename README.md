@@ -18,7 +18,13 @@ The dashboard now provides:
 - Run/request/service guards that reject stale responses after reset, a new incident, or selection changes.
 - Keyboard-visible focus, a skip link, live status feedback, reduced-motion support, and a horizontally scrollable graph on narrow screens.
 
-**Integration status:** Member 1’s simulator, diagnostics, impact, and recovery modules and Member 2’s scanner and Investigator are connected through `integration/bindings.jac`. No production port uses fixture data. Accepted trace-backed discoveries persist in the public simulation graph and affect impact analysis. Reset creates a new run and clears discoveries/evidence. See [integration details](docs/DASHBOARD_INTEGRATION.md).
+**Integration status:** Member 1’s simulator, diagnostics, impact, and recovery modules and Member 2’s scanner and Investigator are connected through `integration/bindings.sv.jac`. No production port uses fixture data. Accepted trace-backed discoveries persist in the public simulation graph and affect impact analysis. Reset creates a new run and clears discoveries/evidence. See [integration details](docs/DASHBOARD_INTEGRATION.md).
+
+## Security Analyst and Recovery proposals
+
+The dashboard now includes model-labeled risk assessments beside deterministic priority, and repair proposals beside simulator verification. Scans and investigations are chained by simulation run; reset and replacement inputs invalidate dependent output. Agent sessions are independent and provider failures retain manual impact/recovery fallback.
+
+The two new feature-owner agent modules are not present yet. Production reports explicit prerequisite or unavailable errors; labeled preview fixtures and MockLLM tests exercise the complete integration boundary. See [agent handoff and validation](docs/AGENT_INTEGRATION.md) for callable signatures and the remaining live-binding checkpoint.
 
 ## Run locally
 
@@ -59,10 +65,10 @@ The bounded Gemini declaration lives in `investigation/agent.jac`. Model/provide
 | `dashboard/pages/SymphonyDashboard.jac` and its implementation annex | Page composition, state ownership, request orchestration |
 | `dashboard/models/view_models.cl.jac` | Typed presentation models, JSON decoding, request guards |
 | `operations.jac` | Stable public endpoint signatures; delegates to the gateway |
-| `integration/gateway.jac` | Request validation, response checks, run and trace-evidence validation |
-| `integration/ports.jac` | Injectable feature contracts for production and isolated tests |
-| `integration/bindings.jac` | Single production composition root for Member 1/2 exports |
-| `integration/*_adapter.jac` | Payload translation, short simulator locks, serialized Investigator sessions and run-safe discovery acceptance |
+| `integration/gateway.sv.jac` | Request validation, response checks, run and trace-evidence validation |
+| `integration/ports.sv.jac` | Injectable feature contracts for production and isolated tests |
+| `integration/bindings.sv.jac` | Single production composition root for Member 1/2 exports |
+| `integration/*_adapter.sv.jac` | Payload translation, short simulator locks, serialized Investigator sessions and run-safe discovery acceptance |
 | `simulation/` | Private deterministic incidents, diagnostics, public known graph, impact and copied-state recovery |
 | `security/` and `investigation/` | Real OSV transport, normalization, bounded byLLM tools and evidence validation |
 | `contracts.jac` | Unchanged shared integration records |
@@ -74,7 +80,7 @@ State flows down through typed props; actions flow up through callbacks. Result 
 The client model suite must remain at `dashboard/models/view_models.cl.test.jac`: Jac 0.34.19’s Bun runner emits a standalone test harness without compiling its relative client-module dependencies. Moving the suite to `tests/` was verified to fail all nine cases with `Cannot find module '../dashboard/models/view_models.js'`. The matching annex filename is required; its test cases use descriptive names without ownership prefixes. Standalone suites and preview helpers in `tests/` use descriptive filenames.
 
 ```sh
-JAC_TEST_JOBS=0 jac test tests/feature_integration_tests.jac tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac investigation/agent.jac investigation/validation.jac simulation/fixtures.jac
+JAC_TEST_JOBS=0 jac test tests/feature_integration_tests.jac tests/agent_integration_tests.jac tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac investigation/agent.jac investigation/validation.jac simulation/fixtures.jac
 # Optional real OSV acceptance (no Gemini call):
 RUN_LIVE_OSV_TESTS=1 jac test security/osv.jac --test_name "real OSV lookup is available when explicitly enabled"
 jac fmt dashboard integration operations.jac tests --check

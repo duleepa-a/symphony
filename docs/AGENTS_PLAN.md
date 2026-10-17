@@ -24,7 +24,7 @@ Rule-based impact and OSV code stays as the fact layer. The agents explain and p
 
 ## Constraint: do not reuse the Investigator's recorder
 
-`investigation/tools.jac` keeps tool calls and evidence in process-wide lists, and `integration/investigation_adapter.jac` serializes sessions with a lock to protect them. New agents must keep their own run-scoped record (a record object created per session and passed to its tools), so concurrent sessions cannot mix evidence. The Investigator is left as it is.
+`investigation/tools.jac` keeps tool calls and evidence in process-wide lists, and `integration/investigation_adapter.sv.jac` serializes sessions with a lock to protect them. New agents must keep their own run-scoped record (a record object created per session and passed to its tools), so concurrent sessions cannot mix evidence. The Investigator is left as it is.
 
 ## Shared rules for every agent
 
@@ -41,7 +41,7 @@ Rule-based impact and OSV code stays as the fact layer. The agents explain and p
 
 - Add the additive records `SecurityAssessment` and `RecoveryProposal` to `contracts.jac`, and freeze them before WP1 and WP2 start.
 - Add the public operations `run_security_analysis(service_id)` and `run_recovery_agent()` to `operations.jac`, using the same `OperationEnvelope`.
-- Fix `impact()` in `integration/bindings.jac`, which joins `potential_exposure` into one string while the simulator returns a list. Keep the list for agent consumers, or format it only in the dashboard.
+- Fix `impact()` in `integration/bindings.sv.jac`, which joins `potential_exposure` into one string while the simulator returns a list. Keep the list for agent consumers, or format it only in the dashboard.
 - Replace the Mac path and add WSL instructions in `docs/SETUP.md`.
 - Mark this plan as accepted in `docs/WORK.md`.
 

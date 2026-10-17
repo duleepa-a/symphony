@@ -12,7 +12,9 @@ obj:pub RequestScope {
             "investigation": 0,
             "scan": 0,
             "impact": 0,
-            "recovery": 0
+            "recovery": 0,
+            "security_analysis": 0,
+            "recovery_agent": 0
         };
 }
 
@@ -397,4 +399,78 @@ def:pub overview_summary(
         ),
         vulnerability_findings=sum(findings.values())
     );
+}
+
+
+obj:pub AssessedFindingView {
+    has advisory_id: str,
+        package: str,
+        risk: str,
+        citations: list[str] = [];
+}
+
+obj:pub SecurityAssessmentView {
+    has feedback: PanelStatus = PanelStatus(),
+        findings: list[AssessedFindingView] = [],
+        dependents: list[str] = [],
+        priority: str = "unknown",
+        rule_priority: str = "unknown",
+        priority_lower: bool = False,
+        explanation: str = "",
+        scan_status: str = "unknown";
+}
+
+obj:pub RecoveryProposalView {
+    has feedback: PanelStatus = PanelStatus(),
+        target: str = "",
+        action: str = "",
+        rationale: str = "",
+        citations: list[str] = [],
+        preview: RecoveryView = RecoveryView();
+}
+
+def:pub security_assessment_view(result: OperationEnvelope) -> SecurityAssessmentView {
+    view = SecurityAssessmentView(feedback=status_view(result));
+    if not has_result(view.feedback.status) {
+        return view;
+    }
+    data = result.data;
+    view.priority = text(value(data, "priority", "unknown"));
+    view.rule_priority = text(value(data, "rule_based_priority", "unknown"));
+    view.priority_lower = bool(value(data, "priority_below_rule_based", False));
+    view.explanation = text(value(data, "explanation", ""));
+    view.dependents = strings(value(data, "dependents", []));
+    view.scan_status = text(value(data, "scan_status", "unknown"));
+    for item in value(data, "findings", []) {
+        view.findings.append(
+            AssessedFindingView(
+                advisory_id=text(value(item, "advisory_id", "")),
+                package=text(value(item, "package", "")),
+                risk=text(value(item, "risk", "")),
+                citations=strings(value(item, "cited_advisory_ids", []))
+            )
+        );
+    }
+    return view;
+}
+
+def:pub recovery_proposal_view(result: OperationEnvelope) -> RecoveryProposalView {
+    view = RecoveryProposalView(feedback=status_view(result));
+    if not has_result(view.feedback.status) {
+        return view;
+    }
+    data = result.data;
+    view.target = text(value(data, "target_service_id", ""));
+    view.action = text(value(data, "action", ""));
+    view.rationale = text(value(data, "rationale", ""));
+    view.citations = strings(value(data, "cited_evidence_ids", []));
+    preview = value(data, "preview", {});
+    view.preview = recovery_view(
+        {
+            "status": result.status,
+            "data": {** preview, "candidate_repair": view.action},
+            "error": None
+        } as OperationEnvelope
+    );
+    return view;
 }

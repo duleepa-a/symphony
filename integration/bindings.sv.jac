@@ -1,6 +1,8 @@
 """Production composition root: explicit feature exports, never diagnostic fixtures."""
 sv {
     import from integration.ports { FeaturePorts }
+    import from integration.agent_ports { AgentPorts }
+    import from integration.agent_adapter { security_analysis, recovery_analysis }
     import from integration.simulation_adapter { dashboard, simulation_call }
     import from integration.security_adapter { scan }
     import from integration.investigation_adapter { investigate }
@@ -36,7 +38,14 @@ sv {
     def recovery(service_id: str) -> OperationEnvelope {
         return simulation_call(sim_preview_recovery, {"service_id": service_id});
     }
-    def production_ports() -> FeaturePorts {
+    def production_ports(agents: AgentPorts | None = None) -> FeaturePorts {
+        configured = agents if agents is not None else AgentPorts();
+        def security_agent(service_id: str) -> OperationEnvelope {
+            return security_analysis(service_id, configured);
+        }
+        def recovery_agent() -> OperationEnvelope {
+            return recovery_analysis(configured);
+        }
         return FeaturePorts(
             dashboard=dashboard,
             handlers={
@@ -48,7 +57,9 @@ sv {
                 "run_investigation": investigate,
                 "scan_service_dependencies": scan,
                 "analyze_security_impact": impact,
-                "preview_recovery": recovery
+                "preview_recovery": recovery,
+                "run_security_analysis": security_agent,
+                "run_recovery_agent": recovery_agent
             }
         );
     }

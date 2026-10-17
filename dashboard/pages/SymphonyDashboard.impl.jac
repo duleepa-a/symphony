@@ -1,6 +1,8 @@
 """Async use cases: run-scoped and request-scoped commits to presentation state."""
 
 impl SymphonyDashboard.clearResults -> None {
+    assessment = SecurityAssessmentView();
+    proposal = RecoveryProposalView();
     investigation = InvestigationView();
     scan = ScanView();
     impact = ImpactView();
@@ -17,6 +19,8 @@ impl SymphonyDashboard.selectService(service_id: str) -> None {
     if service_id == scope.selected_service {
         return;
     }
+    assessment = SecurityAssessmentView();
+    scope.request_ids["security_analysis"] += 1;
     selected_service = service_id;
     scope.selected_service = service_id;
     scan = ScanView();
@@ -138,6 +142,10 @@ impl SymphonyDashboard.setFeedback(operation: str, feedback: PanelStatus) -> Non
         scan = ScanView(feedback=feedback, service_id=selected_service);
     } elif operation == "impact" {
         impact = ImpactView(feedback=feedback);
+    } elif operation == "security_analysis" {
+        assessment = SecurityAssessmentView(feedback=feedback);
+    } elif operation == "recovery_agent" {
+        proposal = RecoveryProposalView(feedback=feedback);
     } else {
         recovery = RecoveryView(feedback=feedback);
     }
@@ -153,9 +161,21 @@ impl SymphonyDashboard.perform(operation: str) -> None {
     }
     epoch = scope.generation;
     run_id = scope.run_id;
-    service_id = "" if operation == "investigation" else scope.selected_service;
+    service_id = ""
+        if operation in ["investigation", "recovery_agent"]
+        else scope.selected_service;
     scope.request_ids[operation] += 1;
     ticket = scope.request_ids[operation];
+    if operation == "scan" {
+        scope.request_ids["security_analysis"] += 1;
+        assessment = SecurityAssessmentView();
+    }
+    if operation == "investigation" {
+        scope.request_ids["recovery_agent"] += 1;
+        proposal = RecoveryProposalView();
+    }
+    fallback_ticket = scope.request_ids["impact"];
+    fallback: OperationEnvelope | None = None;
     setFeedback(operation, PanelStatus(status="loading"));
     try {
         # Jac 0.34.19 treats indirect feature adapters as cacheable readers.
@@ -168,10 +188,22 @@ impl SymphonyDashboard.perform(operation: str) -> None {
             result = await scan_service_dependencies(service_id);
         } elif operation == "impact" {
             result = await analyze_security_impact(service_id);
+        } elif operation == "security_analysis" {
+            result = await run_security_analysis(service_id);
+            __jacClearCache();
+            try {
+                fallback = await analyze_security_impact(service_id);
+            } except Exception {
+                fallback = None;
+            }
+        } elif operation == "recovery_agent" {
+            result = await run_recovery_agent();
         } else {
             result = await preview_recovery(service_id);
         }
-        active_service = "" if operation == "investigation" else scope.selected_service;
+        active_service = ""
+            if operation in ["investigation", "recovery_agent"]
+            else scope.selected_service;
         if not request_is_current(
             epoch,
             scope.generation,
@@ -204,7 +236,9 @@ impl SymphonyDashboard.perform(operation: str) -> None {
             );
             return;
         }
-        active_service = "" if operation == "investigation" else scope.selected_service;
+        active_service = ""
+            if operation in ["investigation", "recovery_agent"]
+            else scope.selected_service;
         if not request_is_current(
             epoch,
             scope.generation,
@@ -245,11 +279,21 @@ impl SymphonyDashboard.perform(operation: str) -> None {
             }
         } elif operation == "impact" {
             impact = impact_view(result);
+        } elif operation == "security_analysis" {
+            assessment = security_assessment_view(result);
+            if fallback is not None
+            and fallback_ticket == scope.request_ids["impact"] {
+                impact = impact_view(fallback);
+            }
+        } elif operation == "recovery_agent" {
+            proposal = recovery_proposal_view(result);
         } else {
             recovery = recovery_view(result);
         }
     } except Exception {
-        active_service = "" if operation == "investigation" else scope.selected_service;
+        active_service = ""
+            if operation in ["investigation", "recovery_agent"]
+            else scope.selected_service;
         if request_is_current(
             epoch,
             scope.generation,
