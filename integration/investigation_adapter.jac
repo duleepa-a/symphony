@@ -21,6 +21,12 @@ sv {
         investigation_evidence
     }
     import from integration.simulation_adapter { simulation_lock }
+    import from integration.service_provider { is_real_mode }
+    import from integration.real_provider {
+        real_check_health,
+        real_get_logs,
+        real_trace_requests
+    }
     import from integration.gateway { discovery_is_supported }
     glob investigation_lock = RLock();
 
@@ -69,13 +75,16 @@ sv {
                 }
             }
             def health(service_id: str) -> Evidence {
-                return diagnostic(sim_check_health, service_id);
+                handler = real_check_health if is_real_mode() else sim_check_health;
+                return diagnostic(handler, service_id);
             }
             def logs(service_id: str) -> Evidence {
-                return diagnostic(sim_get_logs, service_id);
+                handler = real_get_logs if is_real_mode() else sim_get_logs;
+                return diagnostic(handler, service_id);
             }
             def traces(service_id: str) -> Evidence {
-                return diagnostic(sim_trace_requests, service_id);
+                handler = real_trace_requests if is_real_mode() else sim_trace_requests;
+                return diagnostic(handler, service_id);
             }
             configure_diagnostic_tools(health, logs, traces);
             result = runner(context, run_id);
