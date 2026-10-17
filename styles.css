@@ -177,7 +177,7 @@ select { appearance: none; background: #0a1923; border: 1px solid var(--line-bri
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
 
-/* Member 3: reusable operation states and responsive result organisms. */
+/* Reusable operation states and responsive result organisms. */
 a { color: var(--cyan); text-underline-offset: 3px; }
 a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }

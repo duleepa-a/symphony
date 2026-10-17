@@ -14,6 +14,7 @@ import from contracts {
     OperationError,
     Evidence
 }
+import from integration.evidence { trace_supports }
 import from catalog { initial_services, documented_dependencies }
 import from simulation.incidents {
     INCIDENT_ROOT_FAULTS,
@@ -191,7 +192,6 @@ def sim_accept_discovered_dependency(
             return failure("already_known", "This dependency is already known.");
         }
     }
-    supported = False;
     for evidence_id in evidence_ids {
         evidence = sim_state.evidence_log.get(evidence_id);
         if evidence is None {
@@ -207,24 +207,14 @@ def sim_accept_discovered_dependency(
                 f"Evidence '{evidence_id}' is not runtime request-trace evidence for this run."
             );
         }
-        for span in evidence.observation["spans"] {
-            if evidence.service_id == source_id
-            and span["direction"] == "outgoing"
-            and span["peer"] == target_id {
-                supported = True;
-            }
-            if evidence.service_id == target_id
-            and span["direction"] == "incoming"
-            and span["peer"] == source_id {
-                supported = True;
-            }
+        if not trace_supports(
+            evidence, source_id, target_id, sim_state.simulation_run_id
+        ) {
+            return failure(
+                "evidence_does_not_support_edge",
+                "Every cited trace must show an observed request between these services."
+            );
         }
-    }
-    if not supported {
-        return failure(
-            "evidence_does_not_support_edge",
-            "The cited traces do not show a request between these services."
-        );
     }
     link = Dependency(
         source_id=source_id,

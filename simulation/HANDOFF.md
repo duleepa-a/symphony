@@ -1,4 +1,4 @@
-# Simulation handoff (Member 1 -> Member 3)
+# Simulation handoff (Member 1 -> Dashboard integration owner)
 
 Branch: `feat/graph-simulation`. No shared files (`operations.jac`, `main.jac`, `contracts.jac`) were modified.
 All functions return `OperationEnvelope` (`status`, `data`, `error`) unless noted. Failures use `status="failed"`

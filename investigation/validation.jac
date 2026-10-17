@@ -2,28 +2,7 @@
 
 import from contracts { Dependency, Evidence, InvestigationResult }
 
-def _evidence_supports_dependency(
-    dependency: Dependency, evidence: list[Evidence], active_run_id: str,
-) -> bool {
-    if not dependency.evidence_ids {
-        return False;
-    }
-    matched_ids: list[str] = [];
-    for evidence_id in dependency.evidence_ids {
-        for item in evidence {
-            if (
-                item.id == evidence_id
-                and item.simulation_run_id == active_run_id
-                and item.tool == "trace_requests"
-                and str(item.observation.get("source_id", "")) == dependency.source_id
-                and str(item.observation.get("target_id", "")) == dependency.target_id
-            ) {
-                matched_ids.append(evidence_id);
-            }
-        }
-    }
-    return len(matched_ids) == len(dependency.evidence_ids);
-}
+import from integration.evidence { supports_dependency }
 
 def validate_investigation_result(
     model_result: InvestigationResult,
@@ -39,7 +18,7 @@ def validate_investigation_result(
     accepted_dependencies = [
         item
         for item in model_result.discovered_dependencies
-        if _evidence_supports_dependency(item, current_evidence, active_run_id)
+        if supports_dependency(item, current_evidence, active_run_id)
     ];
     observations = [
         f"{item.id}: {item.tool}({item.service_id}) observed {item.observation}"

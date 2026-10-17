@@ -1,4 +1,8 @@
-"""Client regression tests run by Jac's Bun collector, without live endpoints."""
+"""Client model regressions; run with jac test dashboard/models/view_models.cl.jac.
+
+Jac 0.34.19 requires this matching annex basename. A standalone suite under
+tests/ cannot resolve the imported client model in Bun's temporary harness.
+"""
 # Literal wire payloads exercise decoding without server constructors or RPC.
 def:pub envelope_fixture(status: str, data: dict[str, any] = {}) -> OperationEnvelope {
     return {"status": status, "data": data, "error": None} as OperationEnvelope;
