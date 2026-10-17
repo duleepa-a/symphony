@@ -2,11 +2,11 @@
 
 Server integration modules use explicit `.sv.jac` placement so Jac 0.34.19 cannot pull locks or private fact storage into client bundles. Dotted import names and public operations remain unchanged.
 
-The dashboard and application adapters implement WP3/WP4 of [the accepted plan](AGENTS_PLAN.md). The `security_analyst/` and `recovery_agent/` feature modules and action-aware simulator exports are not present in this checkout. Their live binding remains a handoff checkpoint. Production never selects the preview providers.
+The dashboard and application adapters implement WP3/WP4 of [the accepted plan](AGENTS_PLAN.md). The `security_analyst/` and `recovery_agent/` exports from `origin/feat/agents-member1` are connected through `integration/live_agents.sv.jac`, together with the action-aware simulator preview. Production never selects the preview providers.
 
 ## Composition and handoff protocol
 
-`integration/agent_ports.sv.jac` defines `AgentPorts`. Supply it to `production_ports(agents)` in `integration/bindings.sv.jac` with explicit imports when the feature exports arrive:
+`integration/agent_ports.sv.jac` defines `AgentPorts`. `production_ports()` in `integration/bindings.sv.jac` selects the real agents by default. Explicit `production_ports(agents)` overrides support isolated tests; `AgentPorts()` deliberately disables both agents. `integration/live_agents.sv.jac` adapts the feature exports to these callbacks:
 
 ```jac
 AgentPorts(
@@ -26,7 +26,7 @@ The callable signatures are:
 
 Existing agent exports with different signatures should receive small explicit adapters here; feature implementation remains in its own module. No dynamic imports or silent fixture fallback are used. A missing export returns a specific failed envelope after prerequisite validation. New endpoints are registered explicitly in `main.jac`.
 
-Every runner receives a **new** `AgentSession`, including `simulation_run_id`, selected `service_id` (Security Analyst only), a copied fact snapshot, and a session-local tool timeline. `session.read(name)` logs the read and returns a deep copy; runner tools should delegate to it rather than mutate `session.facts`. No recorder in `investigation/tools.jac` is reused.
+Every runner receives a **new** `AgentSession`, including `simulation_run_id`, selected `service_id` (Security Analyst only), a copied fact snapshot, and a session-local tool timeline. `session.read(name)` logs the read and returns a deep copy; the binding reads each prerequisite once and passes it to the feature. Feature tools use a second copied record held in a `ContextVar`, scoped to that invocation and restored in `finally`. Concurrent calls cannot mix tool results or timelines, and neither new agent requires a session-wide mutex. No recorder in `investigation/tools.jac` is reused.
 
 Security fact names are `scan_results` (the latest OperationEnvelope for the selected service), `impact` (deterministic OperationEnvelope), and `known_dependencies` (public known links). Recovery fact names are `investigation_result` (latest completed evidence-backed OperationEnvelope), `impacts` (service ID to deterministic impact data), and `repair_options` (supported action strings). No root fault or private graph is supplied. Agents may run additional read-only previews in their own session implementation; the integration layer always verifies the final decision independently.
 
@@ -48,16 +48,23 @@ State remains in one server process. This does not introduce multi-worker persis
 
 Assessments must cover every current advisory/package pair and cite current-scan advisory IDs. Repeated advisory IDs affecting several packages are handled separately. Dependent services must match deterministic impact; unsupported vulnerability/compromise claims about dependents are rejected. `rule_based_priority` is overwritten from deterministic impact, while `priority_below_rule_based` flags a lower model priority. Partial coverage is exposed as `scan_status` plus a partial envelope; these presentation metadata fields do not change the frozen records.
 
-Recovery decisions must use a public service, a listed action, a nonempty rationale, and evidence IDs from the current completed investigation. The adapter calls the action-aware simulator preview and replaces any model-supplied preview. `not_recovered` and `no_incident` are successful verification outcomes, not evidence of recovery. The callback contract requires copied-state, read-only execution; actual action semantics are owned by the simulator workstream.
+Recovery decisions must use a public service, a listed action, a nonempty rationale, and evidence IDs from the current completed investigation. The adapter calls the action-aware simulator preview and replaces any model-supplied preview. `not_recovered` and `no_incident` are successful verification outcomes, not evidence of recovery. The callback contract requires copied-state, read-only execution; `auth_outage` recovers with `restart` on `auth`; `payment_outage` recovers with `rollback` on `payment`. Wrong targets, other actions and `failover` return `not_recovered`. With no active incident the agent returns `failed/no_active_incident`; the manual preview still supports `no_incident`.
 
-The Security panel always separates model priority from deterministic priority. A typed agent failure still allows a fresh deterministic impact request. The Recovery panel separates model-authored target/rationale/citations from the reused deterministic comparison table. Existing manual impact and recovery controls remain available. New scan/investigation attempts invalidate dependent UI output immediately; service/run/request guards discard obsolete responses.
+The Security panel separates model priority from deterministic priority. Zero-advisory assessments use `analysis_source=deterministic`, use rule-based priority, make no model call, and are labeled accordingly. A typed agent failure still allows a fresh deterministic impact request. The Recovery panel separates model-authored target/rationale/citations from the reused deterministic comparison table. Existing manual impact and recovery controls remain available. New scan/investigation attempts invalidate dependent UI output immediately; service/run/request guards discard obsolete responses.
 
 ## Verification
 
-Run from the repository root in this order (Jac 0.34.19 imports feature test annexes into integration collections):
+Run from the repository root. Use a fresh Jac process for each suite: Jac 0.34.19 imports feature test annexes into integration collections, and combining every suite in one process can leave byLLM nested types such as `AssessedFinding` bound to another collection’s namespace. Serial isolated runs exercise the same tests without that runner collision.
 
 ```sh
-JAC_TEST_JOBS=0 jac test tests/feature_integration_tests.jac tests/agent_integration_tests.jac tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac investigation/agent.jac investigation/validation.jac simulation/fixtures.jac
+for suite in tests/feature_integration_tests.jac tests/agent_integration_tests.jac \
+  tests/agent_workflow_tests.jac tests/dashboard_integration_tests.jac \
+  dashboard/models/view_models.cl.jac recovery_agent/agent.jac \
+  recovery_agent/validation.jac security_analyst/agent.jac \
+  security_analyst/validation.jac investigation/agent.jac \
+  investigation/validation.jac simulation/fixtures.jac; do
+  JAC_TEST_JOBS=0 jac test "$suite" || break
+done
 jac check main.jac
 jac check . --nowarn
 jac fmt dashboard integration main.jac dashboard_preview.jac tests/agent_integration_tests.jac tests/dashboard_fixtures.jac --check
@@ -66,6 +73,8 @@ jac build --client web
 
 MockLLM checks cover chaining, advisory/evidence provenance, empty/partial/failed scans, both incidents, wrong repairs, reset and replacement-input races, session isolation and provider failures. Client tests cover separate priorities, partial coverage, citation decoding, failed verification and independent request counters. These checks do not consume Gemini quota and do not establish live agent quality.
 
-Use the explicitly labeled `dashboard_preview.jac` entry for completed, empty, partial, failed, unavailable and slow UI fixtures. Stop it and rebuild/restart `main.jac` after verification because both entries share the generated client directory. Live end-to-end verification awaits the two actual agent exports and simulator action preview; the plan’s live-agent acceptance items remain open.
+Use the explicitly labeled `dashboard_preview.jac` entry for completed, empty, partial, failed, unavailable and slow UI fixtures. Stop it and rebuild/restart `main.jac` after verification because both entries share the generated client directory. The real production bindings, all three agents and actual simulator tools are exercised together with MockLLM for both incidents. Only OSV transport and model providers are replaced; offline tests never substitute the completed agent features. Live Gemini quality and deployment remain separately configured acceptance work.
 
-Verified during implementation: 157 passing regression executions (imported annexes are counted by Jac), two opt-in live-OSV skips, 64 passing static checks, formatting checks and a successful production build. Production HTTP verification confirms all 12 operations, prerequisite errors, invalid-service rejection, reset clearing, deterministic fallback and a real completed OSV scan followed by an explicit unbound-analyst failure. Browser fixture checks cover completed/empty/partial/failed states, lower model priority, citations, `not_recovered`/`no_incident`, and reset during a slow assessment. Production was rebuilt and reset to a healthy state afterward. No live model requests were made.
+Current integration verification is recorded in the merge description. The offline workflow suite covers both incidents, advisory/evidence citations, action-aware verification, partial no-advisory assessments, authentication failures, reset clearing, concurrent real tool sessions and swallowed tool errors. No live model requests are made. `jac.lock`, dependency manifests and frozen contracts are unchanged by this integration.
+
+Verified integration: 433 passing test executions across the 12 isolated suites, three opt-in OSV skips, 80 passing Jac static checks, formatting checks and a successful production client build. Production HTTP checks cover all 12 registered operations, missing prerequisites, deterministic impact/recovery and reset. Browser acceptance exercises the real production composition and all three agent/tool implementations with MockLLM and offline OSV transport, displaying advisory/evidence citations, separate priorities, trace-backed discovery and a simulator-verified recovered proposal. Temporary provider overrides are removed after verification and the normal app is rebuilt.

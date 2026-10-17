@@ -305,3 +305,19 @@ test "new agent requests have independent guard counters" {
         "r"
     );
 }
+
+test "zero-advisory assessments retain their deterministic source label" {
+    view = security_assessment_view(
+        envelope_fixture(
+            status="completed",
+            data={
+                "analysis_source": "deterministic",
+                "findings": [],
+                "priority": "high",
+                "rule_based_priority": "high"
+            }
+        )
+    );
+    assert view.source == "deterministic" and view.findings == [];
+    assert security_assessment_view(envelope_fixture(status="completed")).source == "model";
+}

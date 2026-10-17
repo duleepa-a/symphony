@@ -2,6 +2,7 @@
 sv {
     import from integration.ports { FeaturePorts }
     import from integration.agent_ports { AgentPorts }
+    import from integration.live_agents { live_agent_ports }
     import from integration.agent_adapter { security_analysis, recovery_analysis }
     import from integration.simulation_adapter { dashboard, simulation_call }
     import from integration.security_adapter { scan }
@@ -39,7 +40,7 @@ sv {
         return simulation_call(sim_preview_recovery, {"service_id": service_id});
     }
     def production_ports(agents: AgentPorts | None = None) -> FeaturePorts {
-        configured = agents if agents is not None else AgentPorts();
+        configured = agents if agents is not None else live_agent_ports();
         def security_agent(service_id: str) -> OperationEnvelope {
             return security_analysis(service_id, configured);
         }
