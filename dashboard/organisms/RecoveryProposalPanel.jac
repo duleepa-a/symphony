@@ -24,7 +24,7 @@ def:pub RecoveryProposalPanel(
             />
             <PanelFeedback
                 feedback={result.feedback}
-                idle_message="Complete an investigation before requesting an evidence-backed repair proposal."
+                idle_message="Run INVESTIGATE and wait for evidence to appear before requesting a repair proposal. Changing or resetting the incident clears its investigation."
             />
             {has_result(result.feedback.status)
             and <div>

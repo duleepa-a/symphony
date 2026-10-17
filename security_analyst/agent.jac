@@ -37,7 +37,7 @@ def judge_security_impl(incident_context: str, active_run_id: str,) -> SecurityJ
     max_output_retries=1,
 );
 
-sem judge_security_impl = "Assess the security risk of one scanned service. Read the scan results and the graph impact first. Report only advisories that appear in the scan, cite their IDs, and never call a dependent service vulnerable or compromised without direct evidence.";
+sem judge_security_impl = "Assess the security risk of one scanned service. Read the scan results and the graph impact first. Report only advisories that appear in the scan, cite their IDs, and never call a dependent service vulnerable or compromised without direct evidence. Use only low, medium, or high for priority; map critical severity to high.";
 sem judge_security_impl.incident_context = "The scanned service ID, scan status, and run ID.";
 sem judge_security_impl.active_run_id = "The current simulation run ID.";
 

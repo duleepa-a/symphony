@@ -40,6 +40,9 @@ jac start --dev main.jac
 
 Open [localhost:8000](http://localhost:8000). Development mode uses a separate API port, normally 8001. Jac's Vite frontend may also advertise a LAN address.
 
+After changing server validation, diagnostic tools, agent bindings, or provider configuration, stop Jac with Ctrl+C and start it again. Refreshing the browser alone can leave imported server code from the previous process active. Restarting clears the process-local simulation and investigation results; trigger the incident and investigate again.
+
+
 Jac 0.34.19 does not support the newer `--frozen` install flag. The team's committed `jac.lock` is retained unchanged. In this runtime, the npm entry records a checksum rather than the contents of Bun's lockfile; obtain a teammate's matching `.jac/client/bun.lock` when exact npm-version alignment is needed. Avoid dependency updates while integrating features.
 
 ## Provider configuration
