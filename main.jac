@@ -14,7 +14,7 @@ import from operations {
 }
 
 import "./styles.css";
-import from .dashboard.SymphonyDashboard { SymphonyDashboard }
+import from .dashboard.pages.SymphonyDashboard { SymphonyDashboard }
 
 def:pub app -> JsxElement {
     return <SymphonyDashboard/>;
