@@ -9,7 +9,7 @@
 - `dashboard`: optional `Callable[[], DashboardState]`.
 - `handlers`: operation-name to synchronous `Callable[..., OperationEnvelope]`.
 
-Actual feature exports are bound in `integration/bindings.jac`. The simulator adapter serializes short state operations. Security adapters translate findings/advisory IDs and per-package errors without changing completion status. The Investigator adapter binds real diagnostic tools, supplies only documented topology and visible states, attaches actual evidence, and persists validated discoveries in the simulator. The gateway returns the initial catalog only when a dashboard provider is unbound. An installed provider that fails is not silently replaced with healthy data.
+Actual feature exports are bound in `integration/bindings.sv.jac`. The simulator adapter serializes short state operations. Security adapters translate findings/advisory IDs and per-package errors without changing completion status. The Investigator adapter binds real diagnostic tools, supplies only documented topology and visible states, attaches actual evidence, and persists validated discoveries in the simulator. The gateway returns the initial catalog only when a dashboard provider is unbound. An installed provider that fails is not silently replaced with healthy data.
 
 Use explicit imports at the handoff; do not dynamically discover modules, fall back to fixture data, or rename the public endpoints. Synchronous feature handlers should encapsulate their own async client execution, or the gateway must be deliberately extended to await async ports before binding them. The current port contract is synchronous.
 

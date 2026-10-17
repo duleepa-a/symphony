@@ -267,3 +267,9 @@ a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cyan); outl
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: 0ms !important; }
 }
+
+/* Agent explanations remain distinct from deterministic facts and previews. */
+.agent-section { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border, #29404a); }
+.agent-section h3, .agent-section h4 { margin: 0 0 .6rem; }
+.agent-section .panel-heading { gap: .75rem; flex-wrap: wrap; }
+.agent-section p { overflow-wrap: anywhere; }

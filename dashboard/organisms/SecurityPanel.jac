@@ -1,5 +1,7 @@
 """Package-level advisory results; failures remain distinct from clean scans."""
 import from ...contracts { Service }
+import from .SecurityAssessmentPanel { SecurityAssessmentPanel }
+import from ..models.view_models { SecurityAssessmentView }
 import from ..atoms.StatusBadge { StatusBadge }
 import from ..atoms.ActionButton { ActionButton }
 import from ..molecules.PanelFeedback { PanelFeedback }
@@ -66,7 +68,10 @@ def:pub SecurityPanel(
     result: ScanView,
     disabled: bool,
     on_service_change: Callable[[str], None],
-    on_scan: Callable[[], None]
+    on_scan: Callable[[], None],
+    assessment: SecurityAssessmentView,
+    rule_priority: str,
+    on_assess: Callable[[], None]
 ) -> JsxElement {
     return
         <section
@@ -133,5 +138,11 @@ def:pub SecurityPanel(
                 title="No verified scan results"
                 description="A completed lookup, an unavailable API, and an unconnected scanner are shown separately."
             />}
+            <SecurityAssessmentPanel
+                result={assessment}
+                rule_priority={rule_priority}
+                disabled={disabled or is_busy(result.feedback.status)}
+                on_assess={on_assess}
+            />
         </section>;
 }
