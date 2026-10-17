@@ -37,3 +37,9 @@ max_tokens = 900
 strategy = "fallback"
 num_retries = 1
 timeout = 45.0
+
+# Feature execution and test providers must never be emitted into the browser.
+[placement.pins]
+"integration.*" = "server"
+"tests.dashboard_fixtures" = "server"
+"tests.dashboard_preview_server" = "server"

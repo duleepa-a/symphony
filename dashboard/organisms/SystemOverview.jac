@@ -1,23 +1,15 @@
-"""System-wide service and finding counters."""
+"""Current-run service and verified-finding counters."""
+import from ...contracts { DashboardSummary }
+import from ..atoms.MetricCard { MetricCard }
 
-import from ..contracts { DashboardSummary }
-
-def MetricCard(label: str, value: int, tone: str) -> JsxElement {
-    return <article className={f"metric-card {tone}"}>
-        <span className="metric-label">{label}</span>
-        <strong>{value}</strong>
-        <span className="metric-rule"></span>
-    </article>;
-}
-
-def:pub SystemOverview(summary: DashboardSummary) -> JsxElement {
-    return <section className="overview" aria-labelledby="overview-title">
+def:pub SystemOverview(summary: DashboardSummary, run_id: str) -> JsxElement {
+    <section className="overview" aria-labelledby="overview-title">
         <div className="section-heading">
             <div>
                 <p className="section-kicker">Current topology</p>
                 <h2 id="overview-title">System overview</h2>
             </div>
-            <p>Documented architecture · initial state</p>
+            <p>Simulation run: {run_id}</p>
         </div>
         <div className="metric-grid">
             <MetricCard
@@ -30,6 +22,11 @@ def:pub SystemOverview(summary: DashboardSummary) -> JsxElement {
                 value={summary.healthy_services}
                 tone="healthy"
             />
+            <MetricCard
+                label="Degraded"
+                value={summary.degraded_services}
+                tone="warning"
+            />
             <MetricCard label="Failed" value={summary.failed_services} tone="failed"/>
             <MetricCard
                 label="Discovered edges"
@@ -37,7 +34,7 @@ def:pub SystemOverview(summary: DashboardSummary) -> JsxElement {
                 tone="signal"
             />
             <MetricCard
-                label="Known findings"
+                label="Returned advisories"
                 value={summary.vulnerability_findings}
                 tone="warning"
             />
