@@ -64,12 +64,14 @@ Recovery uses `candidate_repair`, `before`, `after`, and `outcome`. Before/after
 
 ## Request lifecycle
 
-The page owns one generation counter and independent operation request IDs. Incident/reset requests invalidate the old generation immediately. A service change clears and invalidates only the service-specific panels. Long operations refresh the server snapshot before applying results so changes made by another caller also invalidate stale results. A request may only update a panel while its generation, request ID, selected service, and simulation run still match.
+The page keeps a typed `RequestScope` in a persistent `Ref`: generation counter, independent operation request IDs, current service/run, and incident-mutation guard. Jac 0.34.19 event closures retain old reactive-state snapshots, so lifecycle checks read this ref after every await. Incident/reset requests invalidate the old generation immediately. A service change clears and invalidates only the service-specific panels. Long operations refresh the server snapshot before applying results so changes made by another caller also invalidate stale results. A request may only update a panel while its generation, request ID, selected service, and simulation run still match.
+
+User actions and authoritative dashboard snapshots clear Jac 0.34.19’s RPC read cache so indirectly invoked feature adapters cannot return cached previous-run data.
 
 The gateway independently checks the run before and after feature execution. This is a defensive adapter check, not a replacement for the simulator's concurrency or evidence lifecycle rules.
 
 ## Verification and remaining checkpoint
 
-`tests/dashboard_fixtures.jac` contains deterministic **test doubles**, not Member 1/2 implementations. `tests/dashboard_preview.jac` explicitly activates them and displays a fixture banner. `main.jac` never imports either module. Server placement pins prevent feature execution/test providers being emitted in client code.
+`tests/dashboard_fixtures.jac` contains deterministic **test doubles**, not Member 1/2 implementations. `dashboard_preview.jac` explicitly activates them and displays a fixture banner. `main.jac` never imports the preview entry or its fixture providers. Explicit `sv` blocks keep feature execution and test providers on the server. Presentation helpers are explicitly client-side in `view_models.cl.jac`; their client test annex runs under Bun.
 
 After integrating real feature branches, rerun Jac checks, tests, client build, HTTP operation checks, and both incident workflows in the browser. Real OSV transport, live Gemini quality, and real simulator reset/evidence behavior remain the feature owners' acceptance gates; fixture passes do not establish those capabilities.

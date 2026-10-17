@@ -1,4 +1,5 @@
 """Page orchestrator: owns state, delegates rendering and boundary decoding."""
+import from "@jac/runtime" { __jacClearCache }
 import type from ...contracts { DashboardState, Dependency, OperationEnvelope }
 import from ...operations {
     get_dashboard_state,
@@ -10,6 +11,9 @@ import from ...operations {
     preview_recovery
 }
 import from ..models.view_models {
+    dashboard_is_valid,
+    RequestScope,
+    DependencyView,
     PanelStatus,
     ScanView,
     InvestigationView,
@@ -49,16 +53,10 @@ def:pub SymphonyDashboard -> JsxElement {
         scan: ScanView = ScanView(),
         impact: ImpactView = ImpactView(),
         recovery: RecoveryView = RecoveryView(),
-        discovered: list[Dependency] = [],
-        findings: dict[str, int] = {},
-        generation: int = 0,
-        load_request: int = 0,
-        request_ids: dict[str, int] = {
-            "investigation": 0,
-            "scan": 0,
-            "impact": 0,
-            "recovery": 0
-        };
+        discovered: list[Dependency | DependencyView] = [],
+        findings: dict[str, int] = {};
+    # Mutable lifecycle state must remain current across awaits on Jac 0.34.19.
+    has request_scope: Ref[RequestScope] = Ref(RequestScope());
 
     async can with entry {
         await loadDashboard();
@@ -91,11 +89,12 @@ def:pub SymphonyDashboard -> JsxElement {
 
     edges = merge_dependencies(dashboard.dependencies, discovered) if dashboard else [];
     changing = is_busy(incident.status);
-    <div className="app-shell">
-        <a className="skip-link" href="#dashboard-main">Skip to dashboard</a>
-        <TopBar/>
-        <main className="workspace" id="dashboard-main">
-            {loading
+    return
+        <div className="app-shell">
+            <a className="skip-link" href="#dashboard-main">Skip to dashboard</a>
+            <TopBar/>
+            <main className="workspace" id="dashboard-main">
+                {loading
                 and <div className="loading-state" role="status">
                     Loading service topology…
                 </div>}{load_error
@@ -151,6 +150,6 @@ def:pub SymphonyDashboard -> JsxElement {
                         />
                     </section>
                 </>}
-        </main>
-    </div>
+            </main>
+        </div>;
 }

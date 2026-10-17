@@ -1,22 +1,8 @@
 """Dashboard integration tests: no live model calls, scans, or simulator dependency."""
-import from contracts { OperationEnvelope, OperationError, Dependency }
+import from contracts { OperationEnvelope, OperationError }
 import from integration.ports { configure_ports, FeaturePorts }
 import from integration.gateway { invoke, read_dashboard, discovery_is_supported }
-import from tests.dashboard_fixtures {
-    fixture_ports,
-    set_fixture_case,
-    fixture_dashboard
-}
-import from dashboard.models.view_models {
-    scan_view,
-    investigation_view,
-    recovery_view,
-    request_is_current,
-    merge_dependencies,
-    safe_advisory_url,
-    status_view,
-    observation_text
-}
+import from tests.dashboard_fixtures { fixture_ports, set_fixture_case }
 
 def error_code(result: OperationEnvelope) -> str {
     return result.error.code if result.error else "";
@@ -24,13 +10,12 @@ def error_code(result: OperationEnvelope) -> str {
 
 test "unconnected features and invalid inputs remain explicit" {
     configure_ports(FeaturePorts());
-    assert invoke("scan_service_dependencies", {"service_id": "payment"}).status
-        == "not_implemented";
+    assert invoke("scan_service_dependencies", {"service_id": "payment"}).status == "not_implemented";
     assert error_code(invoke("run_investigation", {})) == "investigator_not_connected";
-    assert error_code(invoke("start_incident", {"incident_id": "unsupported"}))
-        == "invalid_incident";
-    assert error_code(invoke("scan_service_dependencies", {"service_id": "unknown"}))
-        == "invalid_service";
+    assert error_code(invoke("start_incident", {"incident_id": "unsupported"})) == "invalid_incident";
+    assert error_code(
+        invoke("scan_service_dependencies", {"service_id": "unknown"})
+    ) == "invalid_service";
     initial = read_dashboard();
     assert len(initial.services) == 6 and len(initial.dependencies) == 5;
     assert not `any(
@@ -55,37 +40,18 @@ test "incident adapters refresh six-service state and reset creates a fresh run"
     assert len(read_dashboard().dependencies) == 5;
 }
 
-test "scanner separates findings empty partial and failed cases" {
+test "scanner fixtures preserve completion and failure classes" {
     configure_ports(fixture_ports());
     for case_name in ["completed", "empty", "partial", "failed"] {
         set_fixture_case(case_name);
-        result = scan_view(
-            invoke("scan_service_dependencies", {"service_id": "payment"}), "payment"
-        );
-        assert result.feedback.status
-            == ("completed" if case_name == "empty" else case_name);
-        if case_name == "completed" {
-            assert result.finding_count == 1;
-            assert result.packages[0].advisories[0].severity == "unknown";
-        } elif case_name == "empty" {
-            assert result.packages[0].status == "completed"
-                and result.finding_count == 0;
-        } elif case_name == "partial" {
-            assert result.packages[0].error and result.finding_count == 1;
+        result = invoke("scan_service_dependencies", {"service_id": "payment"});
+        assert result.status == ("completed" if case_name == "empty" else case_name);
+        if case_name == "failed" {
+            assert result.error is not None;
         } else {
-            assert not result.packages and result.feedback.message;
+            assert len(result.data["packages"]) == 1;
         }
     }
-}
-
-test "empty malformed scans and unsafe links never become clean successful data" {
-    result = scan_view(
-        OperationEnvelope(status="completed", data={"packages": []}), "payment"
-    );
-    assert result.feedback.status == "failed";
-    assert safe_advisory_url("javascript:alert(1)") == "";
-    assert safe_advisory_url("https://osv.dev/vulnerability/FIXTURE") != "";
-    assert status_view(OperationEnvelope(status="unexpected")).status == "failed";
 }
 
 test "discovery requires the matching run and trace endpoints" {
@@ -118,57 +84,16 @@ test "discovery requires the matching run and trace endpoints" {
         ]
     };
     assert not discovery_is_supported(invented, run_id);
-    presentation = investigation_view(result);
-    assert len(presentation.timeline) == 2 and len(presentation.dependencies) == 1;
-}
-
-test "request guard discards old runs old services old requests and old epochs" {
-    assert request_is_current(
-        1, 1, 2, 2, "payment", "payment", "run-1", "run-1", "run-1"
-    );
-    assert not request_is_current(
-        1, 2, 2, 2, "payment", "payment", "run-1", "run-1", "run-1"
-    );
-    assert not request_is_current(
-        1, 1, 1, 2, "payment", "payment", "run-1", "run-1", "run-1"
-    );
-    assert not request_is_current(
-        1, 1, 2, 2, "payment", "catalog", "run-1", "run-1", "run-1"
-    );
-    assert not request_is_current(
-        1, 1, 2, 2, "payment", "payment", "run-1", "run-2", "run-1"
-    );
-    assert not request_is_current(
-        1, 1, 2, 2, "payment", "payment", "run-1", "run-1", "run-0"
-    );
-}
-
-test "discovered edges deduplicate and require evidence references" {
-    documented = [Dependency(source_id="payment", target_id="database")];
-    proposed = [
-        Dependency(
-            source_id="payment",
-            target_id="auth",
-            kind="discovered",
-            evidence_ids=["trace-1"]
-        )
-    ];
-    assert len(merge_dependencies(documented, proposed + proposed)) == 2;
-    assert len(
-        merge_dependencies(
-            documented,
-            [Dependency(source_id="payment", target_id="auth", kind="discovered")]
-        )
-    )
-        == 1;
+    assert len(result.data["tool_timeline"]) == 2
+    and len(result.data["discovered_dependencies"]) == 1;
 }
 
 test "recovery preview preserves the active simulation" {
     configure_ports(fixture_ports());
     invoke("start_incident", {"incident_id": "payment_outage"});
     before = [s.state for s in read_dashboard().services];
-    view = recovery_view(invoke("preview_recovery", {"service_id": "payment"}));
-    assert len(view.rows) == 6 and view.outcome;
+    result = invoke("preview_recovery", {"service_id": "payment"});
+    assert len(result.data["before"]) == 6 and result.data["outcome"];
     assert [s.state for s in read_dashboard().services] == before;
 }
 
@@ -182,7 +107,7 @@ test "provider exceptions return a failed operation instead of successful empty 
     );
     result = invoke("scan_service_dependencies", {"service_id": "payment"});
     assert result.status == "failed"
-        and error_code(result) == "feature_execution_failed";
+    and error_code(result) == "feature_execution_failed";
     assert not result.data;
 }
 
@@ -199,20 +124,13 @@ test "malformed and stale feature responses are rejected" {
     configure_ports(
         FeaturePorts(handlers={"scan_service_dependencies": malformed_provider})
     );
-    assert error_code(invoke("scan_service_dependencies", {"service_id": "payment"}))
-        == "invalid_feature_response";
+    assert error_code(
+        invoke("scan_service_dependencies", {"service_id": "payment"})
+    ) == "invalid_feature_response";
     configure_ports(
         FeaturePorts(handlers={"scan_service_dependencies": stale_provider})
     );
-    assert error_code(invoke("scan_service_dependencies", {"service_id": "payment"}))
-        == "stale_run";
-}
-
-test "evidence formatting retains concrete observations" {
-    description = observation_text(
-        {"source_id": "payment", "target_id": "auth", "message": "timeout"}
-    );
-    assert "payment" in description
-        and "auth" in description
-        and "timeout" in description;
+    assert error_code(
+        invoke("scan_service_dependencies", {"service_id": "payment"})
+    ) == "stale_run";
 }

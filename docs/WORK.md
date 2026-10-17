@@ -198,7 +198,7 @@ No feature exports from Member 1 or Member 2 are present on this branch. Their i
 
 ### Application verification
 
-- [x] Run full-project `jac check --nowarn` and formatting checks.
+- [x] Run full-project `jac check . --nowarn` and formatting checks.
 - [x] Build the production client bundle.
 - [x] Start the application and verify every public operation over HTTP.
 - [x] Verify all six nodes and exactly five initial documented edges.
@@ -207,7 +207,7 @@ No feature exports from Member 1 or Member 2 are present on this branch. Their i
 - [x] Verify provider and OSV failures remain visible and truthful.
 - [x] Update README architecture and run instructions to match the integrated implementation.
 
-Verification: 11 Jac regression tests pass without OSV/Gemini access. Browser checks cover completed, empty, partial, failed, unavailable, reset and service-selection races, evidence formatting, retained discoveries after failed retries, keyboard focus, and 390px/1440px layouts. Production HTTP checks verify truthful unbound wrappers. Live OSV, Gemini, and simulator acceptance remains pending the feature handoffs.
+Verification: 16 Jac regression tests pass (7 server tests and 9 client tests) without OSV/Gemini access. Browser checks cover completed, empty, partial, failed, unavailable, reset and service-selection races, evidence formatting, retained discoveries after failed retries, keyboard focus, and 390px/1440px layouts. Production HTTP checks verify truthful unbound wrappers. Live OSV, Gemini, and simulator acceptance remains pending the feature handoffs.
 
 ## Parallel integration matrix
 

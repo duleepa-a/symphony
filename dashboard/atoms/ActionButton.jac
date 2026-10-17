@@ -6,13 +6,14 @@ def:pub ActionButton(
     busy: bool = False,
     tone: str = "primary"
 ) -> JsxElement {
-    <button
-        type="button"
-        className={f"button {tone}"}
-        disabled={disabled or busy}
-        aria-busy={busy}
-        onClick={on_click}
-    >
-        {"Working…" if busy else label}
-    </button>
+    return
+        <button
+            type="button"
+            className={f"button {tone}"}
+            disabled={disabled or busy}
+            aria-busy={busy}
+            onClick={on_click}
+        >
+            {"Working…" if busy else label}
+        </button>;
 }
