@@ -201,7 +201,7 @@ def sim_accept_discovered_dependency(
             );
         }
         if evidence.tool != "trace_requests"
-            or evidence.simulation_run_id != sim_state.simulation_run_id {
+        or evidence.simulation_run_id != sim_state.simulation_run_id {
             return failure(
                 "unsupported_evidence",
                 f"Evidence '{evidence_id}' is not runtime request-trace evidence for this run."
@@ -209,13 +209,13 @@ def sim_accept_discovered_dependency(
         }
         for span in evidence.observation["spans"] {
             if evidence.service_id == source_id
-                and span["direction"] == "outgoing"
-                and span["peer"] == target_id {
+            and span["direction"] == "outgoing"
+            and span["peer"] == target_id {
                 supported = True;
             }
             if evidence.service_id == target_id
-                and span["direction"] == "incoming"
-                and span["peer"] == source_id {
+            and span["direction"] == "incoming"
+            and span["peer"] == source_id {
                 supported = True;
             }
         }

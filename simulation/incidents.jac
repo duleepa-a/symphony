@@ -11,8 +11,9 @@ glob INCIDENT_ROOT_FAULTS: dict[str, str] = {
 
 def true_dependencies -> list[Dependency] {
     # Private: documented links plus the hidden Payment -> Auth dependency.
-    return documented_dependencies()
-        + [Dependency(source_id="payment", target_id="auth")];
+    return documented_dependencies() + [
+        Dependency(source_id="payment", target_id="auth")
+    ];
 }
 
 def healthy_states -> dict[str, str] {
