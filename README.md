@@ -4,105 +4,95 @@ Agentic Reliability & Security Intelligence
 
 > Uncover hidden dependencies. Investigate failures. Expose vulnerabilities.
 
-SYMPHONY is a Jac full-stack foundation for a hackathon demo that combines a simulated microservice topology, evidence-driven incident investigation, and real OSV.dev advisory lookups.
+SYMPHONY is a Jac 0.37.25 full-stack foundation for investigating a simulated six-service topology. The service inventory is simulated. Production advisory lookups and model investigation become live only when the corresponding feature implementations are integrated.
 
-## Current phase
+## Member 3 dashboard
 
-The foundation currently provides:
+The dashboard now provides:
 
-- A responsive Jac dashboard with all required product panels.
-- Six services and five documented dependencies.
-- Stable typed contracts for all three workstreams.
-- Exact-version simulated software inventories.
-- A working `get_dashboard_state()` server endpoint.
-- Explicit server placeholders for every planned operation.
-- Client adapters already wired to those operation names.
+- Independent incident, investigation, scan, impact, and recovery states, including loading, completed, empty, partial, failed, and unavailable outcomes.
+- A selectable six-service graph driven by returned service health and dependencies, with separate documented and trace-backed discovery styles and an accessible relationship list.
+- Investigation timeline, observed evidence, ranked candidates, discovered relationships, and explanation.
+- Package-level advisory results, external references, unknown severity, and explicit incomplete/error coverage.
+- Potential-exposure analysis and a non-destructive recovery comparison.
+- Run/request/service guards that reject stale responses after reset, a new incident, or selection changes.
+- Keyboard-visible focus, a skip link, live status feedback, reduced-motion support, and a horizontally scrollable graph on narrow screens.
 
-Incident simulation, Jac byLLM investigation, and real OSV scanning are intentionally marked as not connected. Their buttons call real placeholder endpoints and never show fake success data.
-
-The Investigator's byLLM declaration and tool boundary are wired. The checked-in example credential is deliberately invalid, so model calls return an explicit failure until a real provider key is supplied.
+**Integration status:** this branch contains no Member 1 simulation modules or Member 2 scanner/Investigator modules. Production returns explicit `not_implemented` responses for those capabilities. It does not substitute fixtures or invoke the old inline Investigator against unavailable diagnostics. Complete the handoff in `integration/bindings.jac` when those typed exports are available. See [Member 3 integration](docs/MEMBER3_INTEGRATION.md).
 
 ## Run locally
 
-Install the current Jac toolchain, then run:
+Use **Jac 0.37.25**, matching the exact pin in `jac.toml`.
 
-```bash
-jac install
+```sh
+jac --version
+jac install --frozen
 jac check main.jac
-jac run --dev main.jac
+jac check --nowarn
+jac run --dev --host 127.0.0.1 main.jac
 ```
 
-Open `http://localhost:8000`.
+Open [localhost:8000](http://localhost:8000). Development mode uses a separate API port, normally 8001. Jac's Vite frontend may also advertise a LAN address.
 
-## Configure the Investigator
+The team's committed `jac.lock` is retained. In this runtime, the npm entry records a checksum rather than the contents of Bun's lockfile; obtain a teammate's matching `.jac/client/bun.lock` when exact npm-version alignment is needed. Avoid dependency updates while integrating features.
 
-Copy the example environment file and replace its dummy key:
+## Provider configuration
 
-```bash
-cp .env.example .env
-```
+If needed, copy `.env.example` to `.env` and supply a real provider credential locally. Preserve an existing `.env`; never commit it. Load it before starting Jac:
 
-```text
-GOOGLE_API_KEY=your-real-gemini-key
-LLM_MODEL=gemini/gemini-3.8-flash
-LLM_FALLBACK_MODEL=gemini/gemini-3.1-flash-lite
-```
-
-`.env` is ignored by Git. Load it into the shell that starts Jac so the key and
-model choices override the safe defaults:
-
-```bash
+```sh
 set -a
-source .env
+. ./.env
 set +a
-jac run --dev main.jac
+jac run --dev --host 127.0.0.1 main.jac
 ```
 
-The Investigator uses `gemini-3.8-flash` first and falls back to
-`gemini-3.1-flash-lite` after a bounded retry. Each request has a 45-second
-timeout. It is bounded to six ReAct iterations and can call only
-`check_service_health`, `get_service_logs`, and `trace_requests`. Malformed
-structured output receives at most one corrective retry to avoid unnecessary
-quota consumption.
+The existing bounded Gemini declaration remains in `operations.jac` until Member 2's module is available, as required by the work plan. Model and diagnostic configuration alone does not connect an Investigator implementation. Public wrappers use the production feature bindings; no model calls are made when the feature is unbound.
 
-## Project structure
+## Architecture
 
-```text
-main.jac                         Application entry and endpoint registration
-contracts.jac                    Shared typed integration contracts
-catalog.jac                      Six-service inventory and documented graph
-operations.jac                   Public operation surface and honest stubs
-dashboard/
-  SymphonyDashboard.jac          Stateful dashboard shell
-  SymphonyDashboard.impl.jac     Async operation handlers
-  TopBar.jac                     Product identity
-  SystemOverview.jac             Summary metrics
-  DependencyGraph.jac            Fixed documented topology
-  IncidentPanel.jac              Simulation controls
-  InvestigationPanel.jac         Agent evidence timeline surface
-  SecurityPanel.jac              OSV scan controls and results surface
-  RecoveryPanel.jac              Impact and recovery placeholders
-styles.css                       Global visual system and responsive layout
-IMPLEMENTATION_PLAN.md           Scope, architecture, schedule, and contracts
-WORK.md                          Parallel assignments and merge gates
+| Layer | Responsibility |
+| --- | --- |
+| `dashboard/atoms/` | Buttons, status badges, metrics |
+| `dashboard/molecules/` | Feedback, empty states, graph nodes and relationships |
+| `dashboard/organisms/` | Top bar, overview, graph, and feature panels |
+| `dashboard/pages/SymphonyDashboard.jac` and its implementation annex | Page composition, state ownership, request orchestration |
+| `dashboard/models/view_models.jac` | Typed presentation models, JSON decoding, request guards |
+| `operations.jac` | Stable public endpoint signatures; delegates to the gateway |
+| `integration/gateway.jac` | Request validation, response checks, run and trace-evidence validation |
+| `integration/ports.jac` | Injectable feature contracts for production and isolated tests |
+| `integration/bindings.jac` | Single production composition root for Member 1/2 exports |
+| `contracts.jac` | Unchanged shared integration records |
+
+State flows down through typed props; actions flow up through callbacks. Result decoding stays out of visual components. External requests, feature execution, and model access stay server-side. No additional frontend or backend framework is introduced.
+
+## Verification
+
+```sh
+jac test tests/dashboard_integration_tests.jac -v
+jac fmt dashboard integration operations.jac tests --check
+jac check main.jac
+jac check --nowarn
+jac build --as client
 ```
 
-## Parallel development
+The tests exercise input validation, unbound features, fixture incident/reset adapters, scan error classes, trace-supported discovery, stale-response guards, recovery non-mutation, and provider exceptions without model/API access.
 
-Each workstream can develop without waiting for another:
+For interactive verification against fixtures, stop the main server and run:
 
-- Graph work replaces incident and diagnostic stubs in `operations.jac` or moves them into a feature module while preserving signatures.
-- Security work replaces `scan_service_dependencies()` and `run_investigation()` while using the existing contracts.
-- Dashboard work develops against the current endpoint results and can add fixtures for completed states.
+```sh
+jac run --host 127.0.0.1 --port 8010 tests/dashboard_preview.jac
+```
 
-If an operation moves to a feature module, keep it imported by `main.jac` so Jac registers its public endpoint. Do not rename required fields without coordinating all three branches.
+Open [localhost:8010](http://localhost:8010). This separate application is visibly labeled **Fixture preview — no live scans or model calls**. Choose a response case and press Apply fixture mode. The `slow` case supports testing reset and selection races. This entry point rewrites the local client build, so restart `main.jac` afterward to return to production behavior. It is never imported by `main.jac` and must not be deployed as the real app.
 
 ## Truthfulness rules
 
-- The software inventory is simulated; advisory lookup will be real.
-- API failures must never appear as zero vulnerabilities.
-- The hidden Payment-to-Auth dependency must not be returned in initial dashboard state.
-- Agent conclusions must cite diagnostic evidence.
-- Downstream services are potentially exposed, not automatically vulnerable or compromised.
+- The inventory is simulated; real OSV lookups require Member 2's scanner.
+- API failures never appear as verified zero-vulnerability results.
+- The hidden Payment-to-Auth dependency is absent from initial state.
+- Discovered relationships need matching request-trace evidence for the active run.
+- Dependency reach means potential exposure; it does not establish compromise.
+- Recovery preview must not mutate the active incident.
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [WORK.md](WORK.md) for the full build plan.
+See [implementation plan](docs/IMPLEMENTATION_PLAN.md) and [work allocation](docs/WORK.md).

@@ -171,17 +171,19 @@ README.md
 
 ### Dashboard implementation
 
-- [ ] Replace the single generic operation message with panel-specific state.
-- [ ] Render loading, completed, empty, partial, failed, and not-implemented states for each operation.
+- [x] Replace the single generic operation message with panel-specific state.
+- [x] Render loading, completed, empty, partial, failed, and not-implemented states for each operation.
 - [ ] Connect incident selection, trigger, and reset to live wrappers when Member 1 is integrated.
-- [ ] Update graph node states after incident operations.
-- [ ] Render investigation tool timeline, evidence, candidates, explanation, and discovered edges.
-- [ ] Visually distinguish documented edges from evidence-backed discovered edges.
-- [ ] Render package-level OSV results with advisory links and `unknown` severity where needed.
-- [ ] Add a security-impact section that avoids unsupported vulnerable/compromised wording.
-- [ ] Render recovery before/after state and verification outcome.
-- [ ] Ignore stale asynchronous responses after the simulation run changes.
-- [ ] Preserve responsive layout, keyboard focus, and reduced-motion behavior.
+- [x] Update graph node states after incident operations.
+- [x] Render investigation tool timeline, evidence, candidates, explanation, and discovered edges.
+- [x] Visually distinguish documented edges from evidence-backed discovered edges.
+- [x] Render package-level OSV results with advisory links and `unknown` severity where needed.
+- [x] Add a security-impact section that avoids unsupported vulnerable/compromised wording.
+- [x] Render recovery before/after state and verification outcome.
+- [x] Ignore stale asynchronous responses after the simulation run changes.
+- [x] Preserve responsive layout, keyboard focus, and reduced-motion behavior.
+
+Dashboard behavior is implemented and verified with isolated, labeled fixtures. Incident controls call the stable public wrappers; live simulator integration remains pending the Member 1 handoff. See [integration handoff](MEMBER3_INTEGRATION.md) for the binding map and accepted payloads.
 
 ### Integration ownership
 
@@ -189,19 +191,23 @@ README.md
 - [ ] Import Member 2's feature functions and connect scanner/Investigator wrappers.
 - [ ] Move the current inline Investigator code out of `operations.jac` after Member 2's module is available.
 - [ ] Apply only agreed additive contract changes.
-- [ ] Keep public operation names and response envelopes stable.
+- [x] Keep public operation names and response envelopes stable.
 - [ ] Resolve integration conflicts in shared files rather than asking feature branches to edit them.
+
+No feature exports from Member 1 or Member 2 are present on this branch. Their integration items remain open. Shared contracts and the team lockfile are unchanged; no shared-file conflicts or contract additions were needed.
 
 ### Application verification
 
-- [ ] Run full-project `jac check --nowarn` and formatting checks.
-- [ ] Build the production client bundle.
-- [ ] Start the application and verify every public operation over HTTP.
-- [ ] Verify all six nodes and exactly five initial documented edges.
-- [ ] Verify hidden relationships are absent before evidence-backed discovery.
-- [ ] Verify reset clears incident, investigation, impact, recovery, and discovered-edge UI state.
-- [ ] Verify provider and OSV failures remain visible and truthful.
-- [ ] Update README architecture and run instructions to match the integrated implementation.
+- [x] Run full-project `jac check --nowarn` and formatting checks.
+- [x] Build the production client bundle.
+- [x] Start the application and verify every public operation over HTTP.
+- [x] Verify all six nodes and exactly five initial documented edges.
+- [x] Verify hidden relationships are absent before evidence-backed discovery.
+- [x] Verify reset clears incident, investigation, impact, recovery, and discovered-edge UI state.
+- [x] Verify provider and OSV failures remain visible and truthful.
+- [x] Update README architecture and run instructions to match the integrated implementation.
+
+Verification: 11 Jac regression tests pass without OSV/Gemini access. Browser checks cover completed, empty, partial, failed, unavailable, reset and service-selection races, evidence formatting, retained discoveries after failed retries, keyboard focus, and 390px/1440px layouts. Production HTTP checks verify truthful unbound wrappers. Live OSV, Gemini, and simulator acceptance remains pending the feature handoffs.
 
 ## Parallel integration matrix
 
