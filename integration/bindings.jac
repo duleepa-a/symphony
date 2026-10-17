@@ -15,11 +15,8 @@ sv {
     import from contracts { OperationEnvelope }
 
     def impact(service_id: str) -> OperationEnvelope {
-        result = simulation_call(sim_analyze_impact, {"service_id": service_id});
-        result.data["potential_exposure"] = " ".join(
-            result.data.get("potential_exposure", [])
-        );
-        return result;
+        # Keep potential_exposure as a list for agent consumers; the dashboard joins it.
+        return simulation_call(sim_analyze_impact, {"service_id": service_id});
     }
     def start(incident_id: str) -> OperationEnvelope {
         return simulation_call(sim_start_incident, {"incident_id": incident_id});

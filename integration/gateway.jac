@@ -102,7 +102,11 @@ sv {
                             if operation == "run_investigation"
                             else "impact_analysis_not_connected"
                                 if operation == "analyze_security_impact"
-                                else "recovery_not_connected";
+                                else "security_analyst_not_connected"
+                                    if operation == "run_security_analysis"
+                                    else "recovery_agent_not_connected"
+                                        if operation == "run_recovery_agent"
+                                        else "recovery_not_connected";
             return failure(
                 code,
                 "This feature is not connected. Its implementation must be integrated before live results are available.",
@@ -168,6 +172,19 @@ sv {
                         "before",
                         "after",
                         "outcome"
+                    ],
+                    "run_security_analysis": [
+                        "service_id",
+                        "findings",
+                        "priority",
+                        "rule_based_priority",
+                        "explanation"
+                    ],
+                    "run_recovery_agent": [
+                        "target_service_id",
+                        "action",
+                        "cited_evidence_ids",
+                        "preview"
                     ]
                 };
                 if `any(

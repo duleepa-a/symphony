@@ -12,6 +12,9 @@ test "unconnected features and invalid inputs remain explicit" {
     configure_ports(FeaturePorts());
     assert invoke("scan_service_dependencies", {"service_id": "payment"}).status == "not_implemented";
     assert error_code(invoke("run_investigation", {})) == "investigator_not_connected";
+    assert error_code(invoke("run_security_analysis", {"service_id": "payment"})) == "security_analyst_not_connected";
+    assert error_code(invoke("run_recovery_agent", {})) == "recovery_agent_not_connected";
+    assert error_code(invoke("run_security_analysis", {"service_id": "unknown"})) == "invalid_service";
     assert error_code(invoke("start_incident", {"incident_id": "unsupported"})) == "invalid_incident";
     assert error_code(
         invoke("scan_service_dependencies", {"service_id": "unknown"})

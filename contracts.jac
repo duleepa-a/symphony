@@ -65,6 +65,45 @@ obj InvestigationResult {
         explanation: str = "";
 }
 
+obj AssessedFinding {
+    # One advisory the Security Analyst assessed; it must cite an advisory from the current scan.
+    has advisory_id: str,
+        package: str,
+        risk: str,
+        cited_advisory_ids: list[str] = [];
+}
+
+obj SecurityAssessment {
+    has service_id: str,
+        simulation_run_id: str,
+        findings: list[AssessedFinding] = [],
+        dependents: list[str] = [],
+        priority: str = "low",
+        rule_based_priority: str = "low",
+        explanation: str = "";
+}
+
+obj RepairPreview {
+    has before: list[dict[str, any]] = [],
+        after: list[dict[str, any]] = [],
+        outcome: str = "no_incident";
+}
+
+obj RecoveryProposal {
+    has simulation_run_id: str,
+        target_service_id: str,
+        action: str,
+        rationale: str = "",
+        cited_evidence_ids: list[str] = [],
+        preview: RepairPreview = RepairPreview();
+}
+
+sem SecurityAssessment.priority = "Priority low, medium, or high. Base it on cited advisories and dependents only.";
+sem SecurityAssessment.explanation = "Concise, cautious explanation. Dependents are potentially exposed, never called vulnerable or compromised without direct evidence.";
+sem AssessedFinding.cited_advisory_ids = "Advisory IDs from the current scan that support this risk statement.";
+sem RecoveryProposal.action = "One action returned by list_repair_options.";
+sem RecoveryProposal.cited_evidence_ids = "Evidence IDs from the current investigation that support the chosen target.";
+
 sem InvestigationResult.status = "Investigation completion status. Use completed only when the conclusion is supported by diagnostic evidence.";
 sem InvestigationResult.tool_timeline = "Ordered descriptions of diagnostic tool calls actually used during this investigation.";
 sem InvestigationResult.observed_evidence = "Concrete observations returned by diagnostic tools, without invented facts.";

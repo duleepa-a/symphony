@@ -1,6 +1,6 @@
 # Local setup
 
-Use **Jac 0.34.19**, matching the exact pin in `jac.toml`. The application source is `/Users/praneeshsurendran/Documents/symphony`.
+Use **Jac 0.34.19**, matching the exact pin in `jac.toml`. Run all commands from the repository root. On Windows, use WSL (Ubuntu) and open the repo at its `/mnt/<drive>/...` path, for example `cd "/mnt/d/Hackthon/Hackathon AI/symphony"`.
 
 ## Install the application toolchain
 
@@ -18,7 +18,7 @@ The installer places the self-contained Jac runtime in `~/.local/bin`. Confirm t
 ## Install and verify the project
 
 ```sh
-cd /Users/praneeshsurendran/Documents/symphony
+cd <repository root>
 jac install
 jac check main.jac
 jac check . --nowarn

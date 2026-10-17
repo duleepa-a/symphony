@@ -279,13 +279,14 @@ def:pub impact_view(result: OperationEnvelope) -> ImpactView {
                 )} ({text(value(raw, 'kind', 'documented'))})"
         );
     }
-    view.exposure = text(
-        value(
-            result.data,
-            "potential_exposure",
-            "Potential exposure only; compromise has not been established."
-        )
+    exposure = value(
+        result.data,
+        "potential_exposure",
+        "Potential exposure only; compromise has not been established."
     );
+    view.exposure = " ".join([text(item) for item in exposure])
+        if isinstance(exposure, list)
+        else text(exposure);
     view.priority = text(value(result.data, "priority", "unknown"));
     return view;
 }
