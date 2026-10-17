@@ -281,3 +281,7 @@ No feature implementation depends on another member's branch. Only Dashboard int
 - [x] Gemini and OSV failures are handled without crashing the application.
 - [x] At least 80% of authored project code remains Jac.
 - [x] No secrets or generated artifacts are tracked.
+
+## Phase 2
+
+The Security Analyst and Recovery agents are planned in [AGENTS_PLAN.md](AGENTS_PLAN.md). WP0 (shared contracts, operation names, gateway mapping, and baseline fixes) is applied on `main`; WP1 and WP2 build against those contracts in parallel.

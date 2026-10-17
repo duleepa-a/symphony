@@ -169,6 +169,33 @@ test "recovery comparison preserves missing after states as unknown" {
     assert view.outcome == "Partial recovery";
 }
 
+test "impact exposure accepts a sentence list or a single string" {
+    listed = impact_view(
+        envelope_fixture(
+            status="completed",
+            data={
+                "dependent_services": ["payment"],
+                "relationships": [],
+                "potential_exposure": ["First sentence.", "Second sentence."],
+                "priority": "medium"
+            }
+        )
+    );
+    single = impact_view(
+        envelope_fixture(
+            status="completed",
+            data={
+                "dependent_services": [],
+                "relationships": [],
+                "potential_exposure": "One sentence.",
+                "priority": "low"
+            }
+        )
+    );
+    assert listed.exposure == "First sentence. Second sentence.";
+    assert single.exposure == "One sentence.";
+}
+
 test "evidence formatting retains concrete nested JSON observations" {
     description = observation_text(
         {"source_id": "payment", "target_id": "auth", "details": {"message": "timeout"}}
