@@ -1,0 +1,5 @@
+[project]
+name = "symphony"
+version = "0.1.0"
+description = "A simple Jac project"
+entry-point = "main.jac"
