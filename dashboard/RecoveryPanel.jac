@@ -1,7 +1,7 @@
 """Placeholders for graph impact and recovery verification."""
 
-def:pub RecoveryPanel -> JsxElement {
-    <section className="panel recovery-panel" aria-labelledby="recovery-title">
+def:pub RecoveryPanel() -> JsxElement {
+    return <section className="panel recovery-panel" aria-labelledby="recovery-title">
         <div className="panel-heading">
             <div>
                 <p className="section-kicker">Deterministic verification</p>
@@ -26,5 +26,5 @@ def:pub RecoveryPanel -> JsxElement {
         <p className="helper-text">
             Downstream services will be described as potentially exposed, never compromised without direct evidence.
         </p>
-    </section>
+    </section>;
 }

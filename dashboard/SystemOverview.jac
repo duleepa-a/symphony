@@ -3,15 +3,15 @@
 import from ..contracts { DashboardSummary }
 
 def MetricCard(label: str, value: int, tone: str) -> JsxElement {
-    <article className={f"metric-card {tone}"}>
+    return <article className={f"metric-card {tone}"}>
         <span className="metric-label">{label}</span>
         <strong>{value}</strong>
         <span className="metric-rule"></span>
-    </article>
+    </article>;
 }
 
 def:pub SystemOverview(summary: DashboardSummary) -> JsxElement {
-    <section className="overview" aria-labelledby="overview-title">
+    return <section className="overview" aria-labelledby="overview-title">
         <div className="section-heading">
             <div>
                 <p className="section-kicker">Current topology</p>
@@ -42,5 +42,5 @@ def:pub SystemOverview(summary: DashboardSummary) -> JsxElement {
                 tone="warning"
             />
         </div>
-    </section>
+    </section>;
 }

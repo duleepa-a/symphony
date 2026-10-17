@@ -8,7 +8,7 @@ def:pub IncidentPanel(
     on_reset: Callable[[], None],
     on_investigate: Callable[[], None]
 ) -> JsxElement {
-    <section className="panel incident-panel" aria-labelledby="incident-title">
+    return <section className="panel incident-panel" aria-labelledby="incident-title">
         <div className="panel-heading">
             <div>
                 <p className="section-kicker">Controlled experiment</p>
@@ -41,5 +41,5 @@ def:pub IncidentPanel(
         <p className="helper-text">
             Simulator and Investigator return explicit placeholder statuses in this phase.
         </p>
-    </section>
+    </section>;
 }

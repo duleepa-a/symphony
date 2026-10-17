@@ -1,7 +1,7 @@
 """Prepared surface for evidence-driven agent output."""
 
 def:pub InvestigationPanel(status: str) -> JsxElement {
-    <section
+    return <section
         className="panel investigation-panel"
         aria-labelledby="investigation-title"
     >
@@ -45,5 +45,5 @@ def:pub InvestigationPanel(status: str) -> JsxElement {
                 Not implemented yet. This area will display evidence-cited Investigator output.
             </p>
         </div>
-    </section>
+    </section>;
 }

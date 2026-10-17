@@ -1,7 +1,7 @@
 """Product identity and environment signal."""
 
-def:pub TopBar -> JsxElement {
-    <header className="topbar">
+def:pub TopBar() -> JsxElement {
+    return <header className="topbar">
         <div className="brand-lockup">
             <div className="brand-mark" aria-hidden="true">
                 <span></span>
@@ -20,5 +20,5 @@ def:pub TopBar -> JsxElement {
             <span className="live-dot"></span>
             Simulation workspace
         </div>
-    </header>
+    </header>;
 }

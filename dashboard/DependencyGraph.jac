@@ -15,17 +15,17 @@ def ServiceNode(
     services: list[Service], service_id: str, name: str, class_name: str
 ) -> JsxElement {
     state = service_state(services, service_id);
-    <div className={f"service-node {class_name} state-{state}"}>
+    return <div className={f"service-node {class_name} state-{state}"}>
         <span className="node-state"></span>
         <div>
             <strong>{name}</strong>
             <small>{state}</small>
         </div>
-    </div>
+    </div>;
 }
 
 def:pub DependencyGraph(services: list[Service]) -> JsxElement {
-    <section className="panel graph-panel" aria-labelledby="graph-title">
+    return <section className="panel graph-panel" aria-labelledby="graph-title">
         <div className="panel-heading">
             <div>
                 <p className="section-kicker">Documented view</p>
@@ -102,5 +102,5 @@ def:pub DependencyGraph(services: list[Service]) -> JsxElement {
         <p className="panel-footnote">
             Only documented relationships are visible. Runtime discoveries require diagnostic evidence.
         </p>
-    </section>
+    </section>;
 }
