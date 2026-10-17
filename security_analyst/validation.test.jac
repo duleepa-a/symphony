@@ -46,9 +46,37 @@ test "invented advisories and mismatched packages are rejected" {
 }
 
 test "priority and text must be present and valid" {
-    assert problem_code(judgment_with([finding()], priority="critical")) == "invalid_priority";
+    assert problem_code(judgment_with([finding()], priority="urgent")) == "invalid_priority";
     assert problem_code(judgment_with([finding()], explanation=" ")) == "missing_explanation";
     assert problem_code(judgment_with([finding(risk=" ")])) == "missing_risk";
+}
+
+test "recognized model priorities normalize without changing advisory severity or rule priority" {
+    for (raw, expected) in [
+        ("LOW", "low"),
+        (" Medium ", "medium"),
+        ("HIGH", "high"),
+        ("critical", "high"),
+        (" CRITICAL ", "high")
+    ] {
+        judgment = judgment_with([finding()], priority=raw);
+        scan = scan_data();
+        original = str(scan);
+        assert validate_judgment(judgment, scan) is None;
+        assessment = build_assessment(judgment, scan, "auth", "run-1", [], "low");
+        assert assessment.priority == expected;
+        assert assessment.rule_based_priority == "low";
+        assert judgment.priority == raw;
+        assert str(scan) == original;
+        if raw.strip().lower() == "critical" {
+            assert "maps to high" in assessment.explanation;
+        }
+    }
+    assert problem_code(judgment_with([finding()], priority="")) == "invalid_priority";
+    assert problem_code(judgment_with([finding()], priority="P0")) == "invalid_priority";
+    assert problem_code(
+        judgment_with([finding(advisory_id="invented")], priority="CRITICAL")
+    ) == "unsupported_advisory";
 }
 
 test "affirmative compromise claims are rejected but negated ones are allowed" {

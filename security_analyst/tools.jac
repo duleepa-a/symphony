@@ -19,7 +19,7 @@ obj SecurityJudgment {
 
 sem SecurityJudgment = "The analyst's risk judgment for one scanned service, based only on the scan results and graph impact it read through tools.";
 sem SecurityJudgment.findings = "One entry per advisory worth reporting. Each must name an advisory ID and package that appear in the scan results.";
-sem SecurityJudgment.priority = "low, medium, or high. Weigh advisory severity and how many services depend on the scanned service.";
+sem SecurityJudgment.priority = "Return exactly low, medium, or high in lowercase. This is application priority; OSV severity is a separate field. Map critical severity to high. Weigh advisory severity and how many services depend on the scanned service.";
 sem SecurityJudgment.explanation = "Concise and cautious. Dependent services are potentially affected through the dependency chain, never called vulnerable or compromised without direct evidence. State what the scan could not cover.";
 
 obj SecuritySession {

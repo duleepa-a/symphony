@@ -123,7 +123,7 @@ def recovery_model_for(target: str, action: str, evidence_id: str) -> MockLLM {
                     "final_output": RecoveryChoice(
                         target_service_id=target,
                         action=action,
-                        rationale="The cited trace supports previewing this target and action.",
+                        rationale="The cited diagnostic evidence supports previewing this target and action.",
                         cited_evidence_ids=[evidence_id]
                     )
                 }
@@ -463,4 +463,155 @@ test "real recovery reports no active incident before calling a chooser" {
         run_id
     );
     assert code_of(result) == "no_active_incident";
+}
+
+test "six diagnostic rounds complete when the model describes the incident as failed" {
+    configure_ports(production_ports());
+    invoke("start_incident", {"incident_id": "auth_outage"});
+    run_id = read_dashboard().simulation_run_id;
+    model = mock_model(
+        [
+            MockToolCall(
+                tool=investigator.check_service_health_tool,
+                args={"service_id": "frontend"}
+            ),
+            MockToolCall(
+                tool=investigator.check_service_health_tool,
+                args={"service_id": "api_gateway"}
+            ),
+            MockToolCall(
+                tool=investigator.check_service_health_tool,
+                args={"service_id": "payment"}
+            ),
+            MockToolCall(
+                tool=investigator.check_service_health_tool, args={"service_id": "auth"}
+            ),
+            MockToolCall(
+                tool=investigator.get_service_logs_tool,
+                args={"service_id": "api_gateway"}
+            ),
+            MockToolCall(
+                tool=investigator.get_service_logs_tool, args={"service_id": "payment"}
+            ),
+            MockToolCall(
+                tool=finish_tool,
+                args={
+                    "final_output": InvestigationResult(
+                        status="failed",
+                        candidate_root_causes=[
+                            "Auth is unavailable; downstream services report timeouts."
+                        ],
+                        explanation="Frontend, API Gateway, Payment and Auth are failing. Logs show downstream request timeouts; the root cause remains uncertain."
+                    )
+                }
+            )
+        ]
+    );
+    with patch.object(investigator, "investigator_model", model) {
+        result = invoke("run_investigation", {});
+    }
+    assert result.status == "completed" , str(result.error);
+    assert len(model.seen_prompts) == 7;
+    assert len(result.data["evidence"]) == 6;
+    assert len(result.data["tool_timeline"]) == 6;
+    assert all(item["simulation_run_id"] == run_id for item in result.data["evidence"]);
+    stored = result_store.latest("run_investigation");
+    assert stored is not None and stored.status == "completed";
+    evidence_id = result.data["evidence"][3]["id"];
+    with patch.object(
+        recoverer, "recovery_model", recovery_model_for("auth", "restart", evidence_id)
+    ) {
+        proposal = invoke("run_recovery_agent", {});
+    }
+    assert proposal.status == "completed" , str(proposal.error);
+    assert proposal.data["preview"]["outcome"] == "recovered";
+}
+
+test "a model summary without actual tool evidence cannot complete an investigation" {
+    configure_ports(production_ports());
+    invoke("start_incident", {"incident_id": "auth_outage"});
+    model = mock_model(
+        [
+            MockToolCall(
+                tool=finish_tool,
+                args={
+                    "final_output": InvestigationResult(
+                        status="completed",
+                        observed_evidence=["Invented diagnostic evidence"],
+                        candidate_root_causes=["Auth is unavailable"],
+                        explanation="A model summary alone cannot verify observations."
+                    )
+                }
+            )
+        ]
+    );
+    with patch.object(investigator, "investigator_model", model) {
+        result = invoke("run_investigation", {});
+    }
+    assert result.status == "failed";
+    assert code_of(result) == "investigator_insufficient_evidence";
+    assert result.data["evidence"] == [];
+    assert code_of(invoke("run_recovery_agent", {})) == "investigation_required";
+}
+
+test "production analyst accepts critical and uppercase priorities on the three-level application scale" {
+    configure_ports(production_ports());
+    invoke("start_incident", {"incident_id": "normal"});
+    def critical_query(package: str, ecosystem: str, version: str) -> dict[str, any] {
+        result = query_fixture(package, ecosystem, version);
+        result["vulns"][0]["database_specific"]["severity"] = "CRITICAL";
+        return result;
+    }
+    with patch.object(osv, "query_osv", critical_query), patch.object(
+        osv, "get_osv_advisory", no_network
+    ) {
+        scan = invoke("scan_service_dependencies", {"service_id": "auth"});
+    }
+    assert scan.status == "completed";
+    for (raw, expected) in [
+        ("CRITICAL", "high"),
+        ("critical", "high"),
+        (" HIGH ", "high"),
+        ("MEDIUM", "medium"),
+        ("LOW", "low")
+    ] {
+        judgment = judgment_for("pyjwt");
+        judgment.priority = raw;
+        model = mock_model(
+            [
+                MockToolCall(tool=security_tools.get_scan_results_tool, args={}),
+                MockToolCall(
+                    tool=security_tools.get_impact_tool, args={"service_id": "auth"}
+                ),
+                MockToolCall(tool=security_tools.get_known_dependencies_tool, args={}),
+                MockToolCall(tool=finish_tool, args={"final_output": judgment})
+            ]
+        );
+        with patch.object(analyst, "analyst_model", model) {
+            assessment = invoke("run_security_analysis", {"service_id": "auth"});
+        }
+        assert assessment.status == "completed" , str(assessment.error);
+        assert assessment.data["priority"] == expected;
+        assert assessment.data["rule_based_priority"] == "low";
+        assert not assessment.data["priority_below_rule_based"];
+        assert assessment.data["findings"][0]["cited_advisory_ids"] == [
+            "GHSA-workflow"
+        ];
+        assert len(assessment.data["tool_timeline"]) == 3;
+        if raw.lower() == "critical" {
+            assert "maps to high" in str(assessment.data["explanation"]);
+        }
+    }
+    stored_scan = result_store.latest("scan_service_dependencies", "auth");
+    assert stored_scan is not None;
+    assert stored_scan.data["packages"][0]["advisories"][0]["severity"] == "CRITICAL";
+    judgment = judgment_for("pyjwt");
+    judgment.priority = "urgent";
+    with patch.object(
+        analyst,
+        "analyst_model",
+        mock_model([MockToolCall(tool=finish_tool, args={"final_output": judgment})])
+    ) {
+        assert code_of(invoke("run_security_analysis", {"service_id": "auth"})) == "invalid_priority";
+    }
 }

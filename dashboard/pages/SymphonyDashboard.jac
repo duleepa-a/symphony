@@ -167,7 +167,9 @@ def:pub SymphonyDashboard -> JsxElement {
                             disabled={changing}
                             on_preview={previewRecovery}
                             proposal={proposal}
-                            proposal_disabled={is_busy(investigation.feedback.status)}
+                            proposal_disabled={is_busy(investigation.feedback.status)
+                            or investigation.feedback.status != "completed"
+                            or not investigation.evidence}
                             on_propose={proposeRecovery}
                         />
                     </section>

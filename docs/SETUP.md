@@ -45,6 +45,9 @@ jac start --dev main.jac
 
 Open [localhost:8000](http://localhost:8000). Use the addresses printed by Jac for the frontend and API. Stop the server with Ctrl+C. Do not commit `.env` or provider credentials.
 
+After changing server validation, diagnostic tools, agent bindings, or provider configuration, stop Jac with Ctrl+C and start it again. Refreshing the browser alone can leave imported server code from the previous process active. Restarting clears the process-local simulation and investigation results; trigger the incident and investigate again.
+
+
 ## Fixture verification
 
 Stop the main server before starting the separately labeled preview:

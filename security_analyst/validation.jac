@@ -6,6 +6,14 @@ import from .tools { SecurityJudgment, advisories_in }
 
 glob PRIORITY_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2};
 glob OVERSTATED_WORDS = ["compromised", "breached", "exploited", "hacked"];
+
+def normalize_priority(priority: str) -> str {
+    value = priority.strip().lower();
+    # The application has three priority levels. Critical severity belongs
+    # in its highest priority bucket, while unknown labels still fail validation.
+    return "high" if value == "critical" else value;
+}
+
 def _error(code: str, message: str) -> OperationError {
     return OperationError(code=code, message=message);
 }
@@ -20,7 +28,7 @@ def validate_judgment(
     advisories = advisories_in(scan);
     known = {(item["advisory_id"], item["package"]) for item in advisories};
     known_ids = {item["advisory_id"] for item in advisories};
-    if judgment.priority not in PRIORITY_RANK {
+    if normalize_priority(judgment.priority) not in PRIORITY_RANK {
         return _error(
             "invalid_priority",
             f"Priority '{judgment.priority}' is not low, medium, or high."
@@ -114,16 +122,20 @@ def build_assessment(
     dependents: list[str],
     rule_based_priority: str,
 ) -> SecurityAssessment {
+    priority = normalize_priority(judgment.priority);
     explanation = judgment.explanation;
-    if PRIORITY_RANK[judgment.priority] < PRIORITY_RANK.get(rule_based_priority, 0) {
-        explanation = f"{explanation} Note: the model priority ({judgment.priority}) is lower than the rule-based priority ({rule_based_priority}).";
+    if judgment.priority.strip().lower() == "critical" {
+        explanation = f"{explanation} Model priority '{judgment.priority.strip()}' maps to high on the application's low/medium/high priority scale.";
+    }
+    if PRIORITY_RANK[priority] < PRIORITY_RANK.get(rule_based_priority, 0) {
+        explanation = f"{explanation} Note: the model priority ({priority}) is lower than the rule-based priority ({rule_based_priority}).";
     }
     return SecurityAssessment(
         service_id=service_id,
         simulation_run_id=run_id,
         findings=complete_findings(judgment, scan),
         dependents=dependents,
-        priority=judgment.priority,
+        priority=priority,
         rule_based_priority=rule_based_priority,
         explanation=explanation,
     );
