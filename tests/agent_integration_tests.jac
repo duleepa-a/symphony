@@ -207,15 +207,15 @@ def code(result: OperationEnvelope) -> str {
     return result.error.code if result.error else "";
 }
 
-test "agents require current prerequisites and report absent feature exports truthfully" {
-    configure_ports(production_ports());
+test "agents require current prerequisites and explicit unbound ports remain truthful" {
+    configure_ports(production_ports(AgentPorts()));
     invoke("reset_incident", {});
     assert code(invoke("run_security_analysis", {"service_id": "payment"})) == "scan_required";
     assert code(invoke("run_recovery_agent", {})) == "investigation_required";
     setup();
     invoke("scan_service_dependencies", {"service_id": "payment"});
     invoke("run_investigation", {});
-    configure_ports(production_ports());
+    configure_ports(production_ports(AgentPorts()));
     assert code(invoke("run_security_analysis", {"service_id": "payment"})) == "security_analyst_not_connected";
     assert code(invoke("run_recovery_agent", {})) == "recovery_agent_not_connected";
 }

@@ -1,5 +1,6 @@
 """Orchestrate new agents over copied facts; validate provenance before commit."""
 sv {
+    import from agent_support.claims { asserts_terms, asserts_clean_scan }
     import from copy { deepcopy }
     import from dataclasses { asdict }
     import from contracts { OperationEnvelope, OperationError }
@@ -186,22 +187,16 @@ sv {
                 word in normalized_claim
                 for word in ["dependent", "downstream", "upstream"]
             );
-            if dependent_claim and ("compromised" in claim or "vulnerable" in claim) {
+            if dependent_claim
+            and asserts_terms(
+                claim, ["compromised", "vulnerable", "breached", "exploited", "hacked"]
+            ) {
                 return agent_failure(
                     "unsupported_security_claim",
                     "Dependency reach does not establish that a dependent is vulnerable or compromised."
                 );
             }
-            if scan.status == "partial"
-            and `any(
-                phrase in claim
-                for phrase in [
-                    "all clear",
-                    "all-clear",
-                    "no vulnerabilities",
-                    "verified clean"
-                ]
-            ) {
+            if scan.status == "partial" and asserts_clean_scan(claim) {
                 return agent_failure(
                     "incomplete_scan_claim",
                     "An incomplete scan cannot support an all-clear claim."

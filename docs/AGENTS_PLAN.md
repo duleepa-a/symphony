@@ -133,12 +133,14 @@ If time runs short: finish WP2 and the Recovery side of WP3 and WP4, and keep th
 
 ## Acceptance checklist
 
-- [ ] `jac check . --nowarn` and all test suites pass (serial: `JAC_TEST_JOBS=0`).
-- [ ] Both incidents run through Investigator, Recovery and Security Analyst, and every claim cites evidence or an advisory ID.
-- [ ] A failed or partial OSV scan never produces a clean assessment.
-- [ ] Recovery preview does not change the active incident, and a wrong pick shows `not_recovered`.
-- [ ] No agent tool exposes the root fault or the true graph.
-- [ ] Reset clears all agent output, and stale results are dropped.
-- [ ] Gemini and OSV failures show a visible failed state without crashing the app.
-- [ ] Tests use `MockLLM` and spend no Gemini quota.
-- [ ] No secrets or generated artifacts are tracked.
+- [x] `jac check . --nowarn` and all test suites pass (serial: `JAC_TEST_JOBS=0`).
+- [x] Both incidents run through Investigator, Recovery and Security Analyst, and every claim cites evidence or an advisory ID.
+- [x] A failed or partial OSV scan never produces a clean assessment.
+- [x] Recovery preview does not change the active incident, and a wrong pick shows `not_recovered`.
+- [x] No agent tool exposes the root fault or the true graph.
+- [x] Reset clears all agent output, and stale results are dropped.
+- [x] Gemini and OSV failures show a visible failed state without crashing the app.
+- [x] Tests use `MockLLM` and spend no Gemini quota.
+- [x] No secrets or generated artifacts are tracked.
+
+Integration verification uses the actual feature exports and tools with MockLLM and an offline OSV transport. Run each serial suite in a fresh process as documented in [AGENT_INTEGRATION.md](AGENT_INTEGRATION.md) to avoid Jac 0.34.19 test-annex namespace collisions. Live Gemini output quality and JacHammer deployment have not been verified during this merge.

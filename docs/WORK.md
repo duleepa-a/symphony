@@ -298,7 +298,8 @@ The Security Analyst and Recovery agents are planned in [AGENTS_PLAN.md](AGENTS_
 - [x] Reject stale run, request, input and topology revisions, and clear stored/UI output on reset.
 - [x] Keep deterministic/manual fallback available when a model operation fails.
 - [x] Add MockLLM and concurrent-session tests with no paid model calls.
-- [ ] Bind the actual Security Analyst and Recovery feature exports and action-aware simulator callbacks when those modules are handed off.
-- [ ] Verify both incidents end-to-end with the actual new agents, then perform separately configured live-provider acceptance.
+- [x] Bind the actual Security Analyst and Recovery feature exports and action-aware simulator callbacks from `origin/feat/agents-member1`.
+- [x] Verify both incidents end-to-end with actual agent exports and tools using MockLLM and offline OSV transport.
+- [ ] Perform separately configured live-provider quality and deployment acceptance.
 
-The two feature-owner agent directories are absent from this checkout. Production therefore uses explicit prerequisite/unavailable failures. [Agent integration](AGENT_INTEGRATION.md) documents the handoff protocol, test commands and Jac 0.34.19's narrow recovery model-schema requirement. Fixture and MockLLM verification do not mark the missing live agent acceptance complete.
+The actual feature exports are now connected by `integration/live_agents.sv.jac`. [Agent integration](AGENT_INTEGRATION.md) documents production composition, ContextVar session isolation, verification and Jac 0.34.19's narrow recovery model schema. Both incidents are covered through the production gateway with MockLLM; live Gemini quality and JacHammer deployment remain unverified.

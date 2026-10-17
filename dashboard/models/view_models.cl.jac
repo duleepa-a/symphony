@@ -417,7 +417,8 @@ obj:pub SecurityAssessmentView {
         rule_priority: str = "unknown",
         priority_lower: bool = False,
         explanation: str = "",
-        scan_status: str = "unknown";
+        scan_status: str = "unknown",
+        source: str = "model";
 }
 
 obj:pub RecoveryProposalView {
@@ -441,6 +442,7 @@ def:pub security_assessment_view(result: OperationEnvelope) -> SecurityAssessmen
     view.explanation = text(value(data, "explanation", ""));
     view.dependents = strings(value(data, "dependents", []));
     view.scan_status = text(value(data, "scan_status", "unknown"));
+    view.source = text(value(data, "analysis_source", "model"));
     for item in value(data, "findings", []) {
         view.findings.append(
             AssessedFindingView(

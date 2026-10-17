@@ -17,6 +17,7 @@ import from contracts {
 import from integration.evidence { trace_supports }
 import from catalog { initial_services, documented_dependencies }
 import from simulation.incidents {
+    INCIDENT_FAULT_KINDS,
     INCIDENT_ROOT_FAULTS,
     healthy_states,
     propagate_failure
@@ -25,6 +26,7 @@ import from simulation.incidents {
 obj SimState {
     has incident_id: str = "normal",
         root_fault: str = "",
+        fault_kind: str = "",
         run_counter: int = 0,
         simulation_run_id: str = "initial",
         service_states: dict[str, str] = {},
@@ -59,6 +61,7 @@ def new_run(incident_id: str) {
     sim_state.simulation_run_id = f"run-{sim_state.run_counter}";
     sim_state.incident_id = incident_id;
     sim_state.root_fault = INCIDENT_ROOT_FAULTS[incident_id];
+    sim_state.fault_kind = INCIDENT_FAULT_KINDS[incident_id];
     sim_state.service_states = propagate_failure(sim_state.root_fault);
     sim_state.discovered = [];
     sim_state.evidence_counter = 0;
