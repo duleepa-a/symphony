@@ -1,6 +1,6 @@
 # Working in SYMPHONY
 
-This project targets Jac 0.37.25. Before editing Jac files, use the compiler's versioned guides instead of relying on older Jac syntax:
+This project targets Jac 0.34.19 (install: `curl -fsSL https://raw.githubusercontent.com/jaseci-labs/jaseci/main/scripts/install.sh | bash -s -- --version 0.34.19`). Components must `return` their JSX explicitly. Before editing Jac files, use the compiler's versioned guides instead of relying on older Jac syntax:
 
 - `jac guide jac-essentials`
 - `jac guide jac-cl-components`

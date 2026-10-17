@@ -9,7 +9,7 @@ def:pub SecurityPanel(
     on_service_change: Callable[[str], None],
     on_scan: Callable[[], None]
 ) -> JsxElement {
-    <section className="panel security-panel" aria-labelledby="security-title">
+    return <section className="panel security-panel" aria-labelledby="security-title">
         <div className="panel-heading">
             <div>
                 <p className="section-kicker">OSV.dev intelligence</p>
@@ -63,5 +63,5 @@ def:pub SecurityPanel(
                 </div>
             </div>
         </div>
-    </section>
+    </section>;
 }

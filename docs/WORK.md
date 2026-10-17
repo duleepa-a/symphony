@@ -6,7 +6,7 @@ This plan starts after the initial foundation implementation. It covers product 
 
 Do not rebuild these items:
 
-- Jac 0.37.25 `web-app` project, dependency lock, and development commands.
+- Jac 0.34.19 `web-app` project, dependency lock, and development commands.
 - Typed contracts in `contracts.jac`.
 - Six-service catalog, package inventories, and five documented dependencies in `catalog.jac`.
 - Public operation names and truthful placeholder behavior in `operations.jac`.

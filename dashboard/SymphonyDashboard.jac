@@ -16,7 +16,7 @@ import from .InvestigationPanel { InvestigationPanel }
 import from .SecurityPanel { SecurityPanel }
 import from .RecoveryPanel { RecoveryPanel }
 
-def:pub SymphonyDashboard -> JsxElement {
+def:pub SymphonyDashboard() -> JsxElement {
     has dashboard: DashboardState | None = None,
         loading: bool = True,
         load_error: str = "",
@@ -35,7 +35,7 @@ def:pub SymphonyDashboard -> JsxElement {
     async def investigate;
     async def scanDependencies;
 
-    <div className="app-shell">
+    return <div className="app-shell">
         <TopBar/>
         <main className="workspace">
             {loading
@@ -65,5 +65,5 @@ def:pub SymphonyDashboard -> JsxElement {
                     </section>
                 </>}
         </main>
-    </div>
+    </div>;
 }
