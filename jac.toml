@@ -1,5 +1,39 @@
 [project]
 name = "symphony"
 version = "0.1.0"
-description = "A simple Jac project"
-entry-point = "main.jac"
+description = "Agentic reliability and security intelligence"
+entry-point = "main"
+kind = "web-app"
+jac-version = "==0.37.25"
+
+[dependencies]
+
+[dependencies.npm]
+react = "^19.2.0"
+react-dom = "^19.2.0"
+react-router-dom = "^6.22.0"
+react-error-boundary = "^5.0.0"
+"@tanstack/react-form" = "^1.33.0"
+zod = "^4.3.6"
+
+[dependencies.npm.dev]
+vite = "^6.4.1"
+"@vitejs/plugin-react" = "^4.7.0"
+typescript = "^5.3.3"
+"@types/react" = "^19.2.0"
+"@types/react-dom" = "^19.2.0"
+
+[client]
+
+[byllm.model]
+default_model = "${LLM_MODEL:-gemini/gemini-3.8-flash}"
+api_key = "${GOOGLE_API_KEY:-dummy-symphony-replace-with-real-gemini-key}"
+
+[byllm.call_params]
+temperature = 0.2
+max_tokens = 900
+
+[byllm.fallback]
+strategy = "fallback"
+num_retries = 1
+timeout = 45.0
