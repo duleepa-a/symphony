@@ -9,8 +9,12 @@ test "database impact reaches all upstream services via documented edges" {
     sim_reset();
     result = sim_analyze_impact("database");
     assert result.status == "completed";
-    assert set(result.data["dependent_services"])
-        == {"payment", "catalog", "api_gateway", "frontend"};
+    assert set(result.data["dependent_services"]) == {
+        "payment",
+        "catalog",
+        "api_gateway",
+        "frontend"
+    };
     assert result.data["priority"] == "high";
 }
 
@@ -26,7 +30,7 @@ test "auth has no dependents until the edge is discovered" {
 test "impact wording avoids unsupported claims" {
     sim_reset();
     for line in sim_analyze_impact("database").data["potential_exposure"] {
-        assert "no direct evidence" in line;
+        assert "no direct evidence" in str(line);
     }
 }
 
