@@ -62,6 +62,16 @@ def names_of(services: list[Service], ids: list[str]) -> str {
     return ", ".join([service_name(services, item) for item in ids]) if ids else "none";
 }
 
+def clamp_zoom(value: float) -> float {
+    if value < 0.4 {
+        return 0.4;
+    }
+    if value > 2.5 {
+        return 2.5;
+    }
+    return value;
+}
+
 def:pub NodeChip(
     label: str, service_id: str, on_select: Callable[[str], None]
 ) -> JsxElement {
@@ -81,6 +91,129 @@ def:pub DependencyGraph(
     selected_service: str,
     on_select: Callable[[str], None]
 ) -> JsxElement {
+    # Pan and zoom: the latest transform lives in a ref because event closures
+    # can hold stale state; the state values only drive rendering.
+    has zoom: float = 1.0,
+        pan_x: float = 0.0,
+        pan_y: float = 0.0,
+        dragging: bool = False;
+    has view_ref: Ref[dict] = Ref({"zoom": 1.0, "x": 0.0, "y": 0.0});
+    has drag_ref: Ref[dict] = Ref(
+        {"active": False, "sx": 0.0, "sy": 0.0, "ox": 0.0, "oy": 0.0}
+    );
+    has viewport: Ref[any] = Ref(None);
+
+    def apply_view(next_zoom: float, next_x: float, next_y: float) -> None {
+        clamped = clamp_zoom(next_zoom);
+        view_ref.current["zoom"] = clamped;
+        view_ref.current["x"] = next_x;
+        view_ref.current["y"] = next_y;
+        zoom = clamped;
+        pan_x = next_x;
+        pan_y = next_y;
+    }
+    def zoom_by(factor: float, pivot_x: float, pivot_y: float) -> None {
+        current = view_ref.current;
+        next_zoom = clamp_zoom(current["zoom"] * factor);
+        ratio = next_zoom / current["zoom"];
+        apply_view(
+            next_zoom,
+            pivot_x - (pivot_x - current["x"]) * ratio,
+            pivot_y - (pivot_y - current["y"]) * ratio
+        );
+    }
+    def zoom_center(factor: float) -> None {
+        surface = viewport.current;
+        if surface is not None {
+            zoom_by(factor, surface.clientWidth / 2, surface.clientHeight / 2);
+        }
+    }
+    def reset_view -> None {
+        apply_view(1.0, 0.0, 0.0);
+    }
+    def start_drag(event: any) -> None {
+        target = event.target;
+        if event.button != 0
+        or target.closest(".service-node")
+        or target.closest(".graph-tools") {
+            return;
+        }
+        drag_ref.current = {
+            "active": True,
+            "sx": event.clientX,
+            "sy": event.clientY,
+            "ox": view_ref.current["x"],
+            "oy": view_ref.current["y"]
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragging = True;
+    }
+    def move_drag(event: any) -> None {
+        drag = drag_ref.current;
+        if not drag["active"] {
+            return;
+        }
+        apply_view(
+            view_ref.current["zoom"],
+            drag["ox"] + event.clientX - drag["sx"],
+            drag["oy"] + event.clientY - drag["sy"]
+        );
+    }
+    def end_drag(event: any) -> None {
+        drag_ref.current["active"] = False;
+        dragging = False;
+    }
+    def on_key(event: any) -> None {
+        if event.target != event.currentTarget {
+            return;
+        }
+        step = 40.0;
+        current = view_ref.current;
+        if event.key == "+" or event.key == "=" {
+            event.preventDefault();
+            zoom_center(1.2);
+        } elif event.key == "-" or event.key == "_" {
+            event.preventDefault();
+            zoom_center(1 / 1.2);
+        } elif event.key == "0" {
+            event.preventDefault();
+            reset_view();
+        } elif event.key == "ArrowLeft" {
+            event.preventDefault();
+            apply_view(current["zoom"], current["x"] + step, current["y"]);
+        } elif event.key == "ArrowRight" {
+            event.preventDefault();
+            apply_view(current["zoom"], current["x"] - step, current["y"]);
+        } elif event.key == "ArrowUp" {
+            event.preventDefault();
+            apply_view(current["zoom"], current["x"], current["y"] + step);
+        } elif event.key == "ArrowDown" {
+            event.preventDefault();
+            apply_view(current["zoom"], current["x"], current["y"] - step);
+        }
+    }
+    def on_wheel(event: any) -> None {
+        # Zoom only with Ctrl/Cmd (or a trackpad pinch) so normal scrolling still moves the page.
+        if not (event.ctrlKey or event.metaKey) {
+            return;
+        }
+        event.preventDefault();
+        box = viewport.current.getBoundingClientRect();
+        zoom_by(
+            0.9 if event.deltaY > 0 else 1.1,
+            event.clientX - box.left,
+            event.clientY - box.top
+        );
+    }
+
+    can with entry {
+        # React wheel handlers are passive, so attach a native one that may call preventDefault.
+        surface = viewport.current;
+        if surface is not None {
+            surface.addEventListener("wheel", on_wheel, {"passive": False});
+        }
+    }
+
     return
         <section className="panel graph-panel" aria-labelledby="graph-title">
             <div className="panel-heading">
@@ -94,65 +227,112 @@ def:pub DependencyGraph(
                 <span className="discovered-key">Dashed: trace-backed discovery</span>
             </div>
             <div
-                className="graph-scroll"
+                className={"graph-scroll is-dragging" if dragging else "graph-scroll"}
+                ref={viewport}
                 tabIndex={0}
                 role="region"
-                aria-label="Service graph; scroll horizontally on smaller screens"
+                aria-label="Service graph. Drag to pan. Use plus and minus to zoom, zero to reset, arrow keys to move."
+                onPointerDown={start_drag}
+                onPointerMove={move_drag}
+                onPointerUp={end_drag}
+                onPointerCancel={end_drag}
+                onKeyDown={on_key}
             >
-                <div className="graph-canvas">
-                    <svg
-                        className="graph-lines"
-                        viewBox="0 0 1000 440"
-                        preserveAspectRatio="none"
-                        aria-hidden="true"
+                <div
+                    className="graph-tools"
+                    role="group"
+                    aria-label="Graph zoom controls"
+                >
+                    <button
+                        type="button"
+                        className="graph-tool"
+                        aria-label="Zoom in"
+                        onClick={lambda { zoom_center(1.25); }}
                     >
-                        <defs>
-                            <marker
-                                id="documented-arrow"
-                                markerWidth="8"
-                                markerHeight="8"
-                                refX="7"
-                                refY="4"
-                                orient="auto"
-                            >
-                                <path d="M0,0 L8,4 L0,8 Z"/>
-                            </marker>
-                            <marker
-                                id="discovered-arrow"
-                                markerWidth="8"
-                                markerHeight="8"
-                                refX="7"
-                                refY="4"
-                                orient="auto"
-                            >
-                                <path d="M0,0 L8,4 L0,8 Z"/>
-                            </marker>
-                        </defs>
+                        +
+                    </button>
+                    <button
+                        type="button"
+                        className="graph-tool"
+                        aria-label="Zoom out"
+                        onClick={lambda { zoom_center(1 / 1.25); }}
+                    >
+                        −
+                    </button>
+                    <button
+                        type="button"
+                        className="graph-tool graph-tool-reset"
+                        aria-label="Reset view"
+                        onClick={lambda { reset_view(); }}
+                    >
+                        Reset
+                    </button>
+                </div>
+                <div
+                    className="graph-stage"
+                    style={{
+                        "transform": f"translate({pan_x}px, {pan_y}px) scale({zoom})",
+                        "transformOrigin": "0 0"
+                    }}
+                >
+                    <div className="graph-canvas">
+                        <svg
+                            className="graph-lines"
+                            viewBox="0 0 1000 440"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                        >
+                            <defs>
+                                <marker
+                                    id="documented-arrow"
+                                    markerWidth="8"
+                                    markerHeight="8"
+                                    refX="7"
+                                    refY="4"
+                                    orient="auto"
+                                >
+                                    <path d="M0,0 L8,4 L0,8 Z"/>
+                                </marker>
+                                <marker
+                                    id="discovered-arrow"
+                                    markerWidth="8"
+                                    markerHeight="8"
+                                    refX="7"
+                                    refY="4"
+                                    orient="auto"
+                                >
+                                    <path d="M0,0 L8,4 L0,8 Z"/>
+                                </marker>
+                            </defs>
+                            {[
+                                <GraphEdge
+                                    key={f"{dependency.source_id}-{dependency.target_id}"}
+                                    dependency={dependency}
+                                    active={dependency.source_id == selected_service
+                                    or dependency.target_id == selected_service}
+                                /> for dependency in dependencies
+                            ]}
+                        </svg>
                         {[
-                            <GraphEdge
-                                key={f"{dependency.source_id}-{dependency.target_id}"}
-                                dependency={dependency}
-                                active={dependency.source_id == selected_service
-                                or dependency.target_id == selected_service}
-                            /> for dependency in dependencies
+                            <ServiceNode
+                                key={service.id}
+                                service={service}
+                                selected={service.id == selected_service}
+                                on_select={on_select}
+                                related={related_ids(service.id, dependencies)}
+                                summary={f"{service.name}: {service.state}. Depends on: {names_of(
+                                    services, depends_on_ids(service.id, dependencies)
+                                )}. Used by: {names_of(
+                                    services, used_by_ids(service.id, dependencies)
+                                )}."}
+                            /> for service in services
                         ]}
-                    </svg>
-                    {[
-                        <ServiceNode
-                            key={service.id}
-                            service={service}
-                            selected={service.id == selected_service}
-                            on_select={on_select}
-                            related={related_ids(service.id, dependencies)}
-                            summary={f"{service.name}: {service.state}. Depends on: {names_of(
-                                services, depends_on_ids(service.id, dependencies)
-                            )}. Used by: {names_of(
-                                services, used_by_ids(service.id, dependencies)
-                            )}."}
-                        /> for service in services
-                    ]}
+                    </div>
                 </div>
             </div>
+            <p className="graph-hint">
+                Drag the background to pan. Ctrl + scroll, pinch, or the + and − buttons zoom.
+            </p>
             <div className="node-focus" aria-live="polite">
                 <p className="section-kicker">Selected service</p>
                 {selected_service == ""
