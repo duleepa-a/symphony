@@ -3,6 +3,12 @@ import from contracts { DashboardState, OperationEnvelope }
 import from integration.gateway { read_dashboard, invoke }
 import from integration.ports { configure_ports }
 import from integration.bindings { production_ports }
+import from integration.automation {
+    run_full_assessment_impl,
+    latest_full_assessment_impl,
+    monitoring_alert_impl
+}
+
 with entry {
     configure_ports(production_ports());
 }
@@ -53,4 +59,20 @@ def:pub run_security_analysis(service_id: str) -> OperationEnvelope {
 
 def:pub run_recovery_agent -> OperationEnvelope {
     return invoke("run_recovery_agent", {});
+}
+
+def:pub run_full_assessment(
+    trigger: str = "manual", service_id: str = "", force: bool = False
+) -> OperationEnvelope {
+    return run_full_assessment_impl(trigger, service_id, force);
+}
+
+def:pub get_latest_full_assessment -> OperationEnvelope {
+    return latest_full_assessment_impl();
+}
+
+def:pub monitoring_alert(
+    service_id: str, state: str, token: str = ""
+) -> OperationEnvelope {
+    return monitoring_alert_impl(service_id, state, token);
 }

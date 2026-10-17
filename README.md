@@ -78,6 +78,22 @@ Production connects the Investigator, Security Analyst and Recovery agents. Thei
 
 State flows down through typed props; actions flow up through callbacks. Result decoding stays out of visual components. External requests, feature execution, and model access stay server-side. No additional frontend or backend framework is introduced.
 
+### Automated assessment
+
+**Run full assessment** performs investigation, scans all six service inventories with OSV, runs a security assessment for each scan, and shows an all-service advisory/high-severity summary. Detailed impact and recovery results focus on the selected or most likely failed service. The dashboard also polls health every 10 seconds and starts the same workflow when it observes a new failure or another state change while failures remain. Identical automatic requests are deduplicated server-side to avoid repeated model calls.
+
+In real-service mode, impact combines the known dependency graph with observed container health. Recovery is intentionally non-mutating: it recommends an action and returns `not_applied` with the observed before-state unchanged until an operator acts and health is polled again. Mock mode retains deterministic before/after simulation.
+
+External monitoring can start the workflow through the public Jac function endpoint:
+
+```sh
+curl -X POST http://localhost:8001/function/monitoring_alert \
+  -H 'Content-Type: application/json' \
+  -d '{"service_id":"payment","state":"down","token":"replace-with-a-random-secret"}'
+```
+
+Set `SYMPHONY_WEBHOOK_TOKEN` to require the matching token. In real-service mode, deterministic scenario controls are not rendered; Docker or monitoring controls service state while Symphony polls, investigates, and displays the latest webhook-triggered assessment.
+
 ## Verification
 
 The client model suite must remain at `dashboard/models/view_models.cl.test.jac`: Jac 0.34.19’s Bun runner emits a standalone test harness without compiling its relative client-module dependencies. Moving the suite to `tests/` was verified to fail all nine cases with `Cannot find module '../dashboard/models/view_models.js'`. The matching annex filename is required; its test cases use descriptive names without ownership prefixes. Standalone suites and preview helpers in `tests/` use descriptive filenames.
@@ -89,7 +105,7 @@ for suite in tests/feature_integration_tests.jac tests/agent_integration_tests.j
   recovery_agent/validation.jac security_analyst/agent.jac \
   security_analyst/validation.jac investigation/agent.jac \
   investigation/validation.jac simulation/fixtures.jac; do
-  JAC_TEST_JOBS=0 jac test "$suite" || break
+  SYMPHONY_SERVICE_MODE=mock JAC_TEST_JOBS=0 jac test "$suite" || break
 done
 # Optional real OSV acceptance (no Gemini call):
 RUN_LIVE_OSV_TESTS=1 jac test security/osv.jac --test_name "real OSV lookup is available when explicitly enabled"

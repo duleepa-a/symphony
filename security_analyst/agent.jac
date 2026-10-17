@@ -24,6 +24,7 @@ import from .validation {
     assessment_to_dict,
     build_assessment,
     deterministic_assessment,
+    evidence_only_assessment,
     validate_judgment,
 }
 
@@ -108,7 +109,18 @@ def run_security_analysis_with(
         }
         problem = validate_judgment(judgment, data);
         if problem is not None {
-            return agent_failure(problem.code, problem.message);
+            fallback = evidence_only_assessment(
+                data, service_id, run_id, dependents, rule_based, problem.message
+            );
+            fallback_data = assessment_to_dict(
+                fallback,
+                scan_status,
+                len(advisories),
+                security_tool_timeline(),
+                "deterministic_fallback"
+            );
+            fallback_data["model_validation_error"] = problem.code;
+            return OperationEnvelope(status=scan_status, data=fallback_data);
         }
         assessment = build_assessment(
             judgment, data, service_id, run_id, dependents, rule_based

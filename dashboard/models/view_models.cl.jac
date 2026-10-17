@@ -84,7 +84,8 @@ obj:pub ImpactView {
         dependents: list[str] = [],
         relationships: list[str] = [],
         exposure: str = "",
-        priority: str = "unknown";
+        priority: str = "unknown",
+        source: str = "simulation";
 }
 
 obj:pub RecoveryRow {
@@ -97,7 +98,9 @@ obj:pub RecoveryView {
     has feedback: PanelStatus = PanelStatus(),
         repair: str = "",
         rows: list[RecoveryRow] = [],
-        outcome: str = "";
+        outcome: str = "",
+        source: str = "simulation",
+        verification_note: str = "";
 }
 
 def:pub value(raw: dict[str, any] | None, key: str, fallback: any = None) -> any {
@@ -105,6 +108,35 @@ def:pub value(raw: dict[str, any] | None, key: str, fallback: any = None) -> any
         return fallback;
     }
     return raw[key] if key in raw else fallback;
+}
+
+def:pub operation_envelope(raw: dict[str, any]) -> OperationEnvelope {
+    problem = value(raw, "error", None);
+    return {
+        "status": text(value(raw, "status", "failed")),
+        "data": value(raw, "data", {}),
+        "error": {
+            "code": text(value(problem, "code", "assessment_step_failed")),
+            "message": text(value(problem, "message", "Assessment step failed."))
+        }
+            if problem
+            else None
+    } as OperationEnvelope;
+}
+
+def:pub service_states(snapshot: DashboardState) -> dict[str, str] {
+    return {service.id: service.state for service in snapshot.services};
+}
+
+def:pub newly_unhealthy(
+    previous: dict[str, str], current: dict[str, str]
+) -> list[str] {
+    return [
+        service_id
+        for (service_id, state) in current.items()
+        if state in ["down", "degraded"]
+        and previous.get(service_id, "healthy") not in ["down", "degraded"]
+    ];
 }
 
 def:pub dashboard_is_valid(raw: any) -> bool {
@@ -290,6 +322,7 @@ def:pub impact_view(result: OperationEnvelope) -> ImpactView {
         if isinstance(exposure, list)
         else text(exposure);
     view.priority = text(value(result.data, "priority", "unknown"));
+    view.source = text(value(result.data, "analysis_source", "simulation"));
     return view;
 }
 
@@ -302,6 +335,8 @@ def:pub recovery_view(result: OperationEnvelope) -> RecoveryView {
     view.outcome = text(
         value(result.data, "outcome", "Verification outcome unavailable.")
     );
+    view.source = text(value(result.data, "analysis_source", "simulation"));
+    view.verification_note = text(value(result.data, "verification_note", ""));
     before = value(result.data, "before", []);
     after = value(result.data, "after", []);
     for item in before {
@@ -419,6 +454,16 @@ obj:pub SecurityAssessmentView {
         explanation: str = "",
         scan_status: str = "unknown",
         source: str = "model";
+}
+
+obj:pub ServiceRiskView {
+    has service_id: str,
+        service_name: str,
+        scan_status: str = "failed",
+        assessment_status: str = "failed",
+        finding_count: int = 0,
+        high_finding_count: int = 0,
+        priority: str = "unknown";
 }
 
 obj:pub RecoveryProposalView {

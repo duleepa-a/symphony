@@ -1,7 +1,7 @@
 """Package-level advisory results; failures remain distinct from clean scans."""
 import from ...contracts { Service }
 import from .SecurityAssessmentPanel { SecurityAssessmentPanel }
-import from ..models.view_models { SecurityAssessmentView }
+import from ..models.view_models { SecurityAssessmentView, ServiceRiskView }
 import from ..atoms.StatusBadge { StatusBadge }
 import from ..atoms.ActionButton { ActionButton }
 import from ..molecules.PanelFeedback { PanelFeedback }
@@ -70,6 +70,7 @@ def:pub SecurityPanel(
     on_service_change: Callable[[str], None],
     on_scan: Callable[[], None],
     assessment: SecurityAssessmentView,
+    service_risks: list[ServiceRiskView],
     rule_priority: str,
     on_assess: Callable[[], None]
 ) -> JsxElement {
@@ -89,6 +90,42 @@ def:pub SecurityPanel(
             <p className="disclosure">
                 Simulated service inventory — real advisory lookup
             </p>
+            {service_risks
+            and <div className="service-risk-summary">
+                <h3>All-service risk summary</h3>
+                <div className="table-scroll">
+                    <table className="comparison-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Service</th>
+                                <th scope="col">Advisories</th>
+                                <th scope="col">High / critical</th>
+                                <th scope="col">Analyst priority</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[
+                                <tr key={risk.service_id}>
+                                    <th scope="row">{risk.service_name}</th>
+                                    <td>{risk.finding_count}</td>
+                                    <td
+                                        className={"high-risk-count"
+                                            if risk.high_finding_count > 0
+                                            else ""}
+                                    >
+                                        {risk.high_finding_count}
+                                    </td>
+                                    <td>{risk.priority}</td>
+                                    <td>
+                                        {risk.scan_status} / {risk.assessment_status}
+                                    </td>
+                                </tr> for risk in service_risks
+                            ]}
+                        </tbody>
+                    </table>
+                </div>
+            </div>}
             <div className="scan-controls">
                 <div>
                     <label className="field-label" htmlFor="service-select">

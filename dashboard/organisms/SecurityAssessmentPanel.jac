@@ -19,7 +19,9 @@ def:pub SecurityAssessmentPanel(
             <p className="disclosure">
                 {"Deterministic assessment · no model call"
                     if result.source == "deterministic"
-                    else "Model-generated assessment · current scan required"}
+                    else "Evidence-only fallback · unsafe model claims rejected"
+                        if result.source == "deterministic_fallback"
+                        else "Model-generated assessment · current scan required"}
             </p>
             <ActionButton
                 label="Assess scan risk"

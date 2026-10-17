@@ -382,7 +382,8 @@ sv {
             if preview.data.get("outcome") not in [
                 "recovered",
                 "not_recovered",
-                "no_incident"
+                "no_incident",
+                "not_applied"
             ]
             or "before" not in preview.data
             or "after" not in preview.data {
@@ -395,7 +396,9 @@ sv {
             data["preview"] = {
                 "before": deepcopy(preview.data["before"]),
                 "after": deepcopy(preview.data["after"]),
-                "outcome": preview.data["outcome"]
+                "outcome": preview.data["outcome"],
+                "analysis_source": preview.data.get("analysis_source", "simulation"),
+                "verification_note": preview.data.get("verification_note", "")
             };
             return result;
         }

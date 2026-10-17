@@ -32,7 +32,9 @@ def:pub RecoveryPanel(
             <p className="helper-text">
                 Candidate service:{" "}
                 <strong>{service_id}</strong>
-                . Preview does not apply a repair to the active incident.
+                {". Real mode recommends an action but does not mutate Docker services."
+                    if result.source == "real_service_health"
+                    else ". Preview does not apply a repair to the active incident."}
             </p>
             <ActionButton
                 label="Preview recovery"
@@ -42,7 +44,7 @@ def:pub RecoveryPanel(
             />
             <PanelFeedback
                 feedback={result.feedback}
-                idle_message="Compare a candidate repair against the current simulation."
+                idle_message="Preview a candidate action against the active provider state."
             />
             {has_result(result.feedback.status)
             and <div className="recovery-results">

@@ -4,8 +4,12 @@ def:pub RecoveryComparison(result: RecoveryView) -> JsxElement {
     return
         <div className="recovery-results">
             <p className="disclosure">
-                Deterministic simulator verification · preview only
+                {"Observed real-service state · repair not applied"
+                    if result.source == "real_service_health"
+                    else "Deterministic simulator verification · preview only"}
             </p>
+            {result.verification_note
+            and <p className="helper-text">{result.verification_note}</p>}
             <div className="table-scroll">
                 <table className="comparison-table">
                     <caption>Service health before and after the preview</caption>

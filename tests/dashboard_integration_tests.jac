@@ -2,6 +2,11 @@
 import from contracts { OperationEnvelope, OperationError }
 import from integration.ports { configure_ports, FeaturePorts }
 import from integration.gateway { invoke, read_dashboard, discovery_is_supported }
+import from integration.automation {
+    run_full_assessment_impl,
+    latest_full_assessment_impl,
+    monitoring_alert_impl
+}
 import from tests.dashboard_fixtures { fixture_ports, set_fixture_case }
 
 def error_code(result: OperationEnvelope) -> str {
@@ -112,6 +117,41 @@ test "provider exceptions return a failed operation instead of successful empty 
     assert result.status == "failed"
     and error_code(result) == "feature_execution_failed";
     assert not result.data;
+}
+
+test "full assessment orchestrates every existing feature and selects the deepest failed service" {
+    configure_ports(fixture_ports());
+    set_fixture_case("completed");
+    invoke("start_incident", {"incident_id": "auth_outage"});
+    result = run_full_assessment_impl("manual", "", True);
+    assert result.status == "completed";
+    assert result.data["primary_service_id"] == "auth";
+    assert result.data["investigation"]["status"] == "completed";
+    assert result.data["scan"]["status"] == "completed";
+    assert result.data["security_analysis"]["status"] == "completed";
+    assert result.data["recovery_agent"]["status"] == "completed";
+    assert len(result.data["service_assessments"]) == 6;
+    assert all(
+        item["scan"]["status"] == "completed"
+        for item in result.data["service_assessments"]
+    );
+    assert latest_full_assessment_impl().data["assessment_id"] == result.data[
+        "assessment_id"
+    ];
+}
+
+test "automatic assessment deduplicates unchanged health and webhook alerts validate input" {
+    configure_ports(fixture_ports());
+    set_fixture_case("completed");
+    invoke("start_incident", {"incident_id": "payment_outage"});
+    first = run_full_assessment_impl("health_change");
+    duplicate = run_full_assessment_impl("health_change");
+    assert first.data["assessment_id"] == duplicate.data["assessment_id"];
+    assert duplicate.data["deduplicated"];
+    ignored = monitoring_alert_impl("payment", "healthy");
+    assert ignored.status == "completed" and ignored.data["skipped"];
+    invalid = monitoring_alert_impl("unknown", "down");
+    assert invalid.error is not None and invalid.error.code == "invalid_service";
 }
 
 
