@@ -1,35 +1,38 @@
 # Local setup
 
-The supplied repository at `/Users/praneeshsurendran/Documents/symphony` is the application source. Use **Jac 0.37.25**, matching the exact pin in `jac.toml`.
+Use **Jac 0.34.19**, matching the exact pin in `jac.toml`. The application source is `/Users/praneeshsurendran/Documents/symphony`.
 
 ## Install the application toolchain
 
-Download the official installer, inspect it, and select the pinned release:
+Download the official installer, inspect it, and install the pinned release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/jaseci-labs/jac/v0.37.25/scripts/install.sh -o /tmp/jac-install.sh
-bash /tmp/jac-install.sh --version 0.37.25
+curl -fsSL https://raw.githubusercontent.com/jaseci-labs/jaseci/main/scripts/install.sh -o /tmp/jac-install.sh
+bash /tmp/jac-install.sh --version 0.34.19
 export PATH="$HOME/.local/bin:$PATH"
 jac --version
 ```
 
-The installer places `jac` in `~/.local/bin`. Keep that directory on your shell PATH. The binary carries its own Python and JavaScript toolchains.
+The installer places the self-contained Jac runtime in `~/.local/bin`. Confirm that `jac --version` reports `0.34.19` before running this project.
 
 ## Install and verify the project
 
 ```sh
 cd /Users/praneeshsurendran/Documents/symphony
-jac install --frozen
+jac install
 jac check main.jac
-jac check --nowarn
-jac build --as client
+jac check . --nowarn
+jac test tests/dashboard_integration_tests.jac dashboard/models/view_models.cl.jac
+jac build --client web
 ```
 
-Use `jac install` when intentionally resolving or updating dependencies; review changes to `jac.lock`. The environment, npm dependencies, compiler caches, and generated client live under ignored directories.
+Jac 0.34.19 does not support `jac install --frozen`. Keep the team's committed `jac.lock` and npm lock digest unchanged; this migration does not regenerate dependency resolution. Do not regenerate dependency resolution solely to change the compiler version. If exact npm alignment is needed, obtain the matching `.jac/client/bun.lock` from a teammate. Generated environments, dependencies, and bundles stay ignored.
+
+The dashboard retains its atomic architecture under `dashboard/atoms`, `dashboard/molecules`, `dashboard/organisms`, and `dashboard/pages`; presentation models live under `dashboard/models`. Components must explicitly `return` their JSX, including the fixture preview entry point.
 
 ## Start development
 
-If `.env` is absent, copy `.env.example` to `.env`. Preserve an existing file. Replace the example credential only when enabling live investigation; the dashboard and placeholder operations need no provider key.
+Preserve an existing `.env`. If it is absent, copy `.env.example` and configure credentials only when enabling live providers.
 
 ```sh
 if [ -f .env ]; then
@@ -37,48 +40,25 @@ if [ -f .env ]; then
     . ./.env
     set +a
 fi
-jac run --dev --host 127.0.0.1 main.jac
+jac start --dev main.jac
 ```
 
-Open [localhost:8000](http://localhost:8000). The commands load `.env` when present and bind the API to `127.0.0.1`. Use `jac --version` to confirm the pinned 0.37.25 runtime. Jac 0.37.25 starts a separate Vite frontend in HMR mode and may advertise a LAN URL. Add `--port 8002` before `main.jac` if port 8000 is occupied. Stop it with Ctrl+C.
+Open [localhost:8000](http://localhost:8000). Use the addresses printed by Jac for the frontend and API. Stop the server with Ctrl+C. Do not commit `.env` or provider credentials.
 
-Secrets must stay in the ignored `.env` or the hosting platform's environment settings. Never put provider keys in client code or committed configuration. Loading `.env` does not verify provider/model availability.
+## Fixture verification
 
-## JacHammer CLI compatibility
-
-The official CLI artifact served by `jachammer.ai` during setup was v0.2.0, build `prod@a98b958`. Its source declares Jac 0.34.0–0.36.1 as its tested runtime range. It fails to compile under the application's Jac 0.37.25 runtime.
-
-Keep the application on **0.37.25**. A separate **0.36.1** runtime can run the hosting CLI without replacing the app's `jac` command. This machine's compatibility launcher uses `~/.jachammer/runtime/jac-0.36.1` for the CLI and preserves the original launcher at `~/.jachammer/lib/jachammer-launcher.original.sh`. The regular PATH still selects the application's 0.37.25 toolchain.
-
-Verify both tools before deployment:
+Stop the main server before starting the separately labeled preview:
 
 ```sh
-jac --version
-jachammer --version
-jachammer login
-jachammer link <project-name>
-jachammer deploy --dry-run
-jachammer deploy
+jac start --dev --port 8010 dashboard_preview.jac
 ```
 
-Login, project linking, upload, and deployment are separate from local setup. Do not run them merely to verify installation. A CLI update may overwrite the local compatibility launcher; recheck runtime compatibility afterward. The JacHammer web dashboard is an alternative deployment path.
+Open [localhost:8010](http://localhost:8010). Preview providers are test doubles with no live model or OSV calls. Restart `main.jac` afterward to restore the normal entry point.
 
-## Foundation scope
+## JacHammer
 
-The initial state contains six services and five documented dependencies. Simulation, OSV scanning, impact analysis, and recovery remain explicit placeholders. Investigation requires a valid model credential and connected diagnostics. Setup does not implement these features or claim successful scans or model investigations.
+JacHammer is a separate hosting CLI. This machine previously used a compatibility launcher backed by Jac 0.36.1; changing the application's runtime does not change that launcher. Verify the installed CLI with `jachammer --version` before a separately authorized deployment. Local compiler checks do not establish hosting compatibility, provider access, or deployment success.
 
-## Verified setup — 17 October 2026
+## Feature scope
 
-- Application runtime: Jac 0.37.25, official download checksum verified.
-- Hosting CLI: JacHammer 0.2.0 (`prod@a98b958`), running on its separate checksum-verified Jac 0.36.1 runtime. Verified from this project directory.
-- Python and npm dependency installation completed; `jac install --frozen` passed. The team's original npm lock digest was restored after setup. Exact local npm version alignment requires the matching Bun lockfile from a teammate; the locally generated Bun lockfile is different.
-- `jac check main.jac` and the full-project `jac check --nowarn` passed.
-- `jac build --as client` passed.
-- The Jac development server started the dashboard on localhost:8000 and the API on localhost:8001.
-- Live dashboard response: six healthy services and exactly five documented dependencies; no hidden dependency present.
-- All eight unfinished operation endpoints returned their explicit not-implemented status and expected error code.
-- `/healthz/live` and `/healthz/ready` returned HTTP 200.
-- Browser rendering and incident/scan placeholder interactions passed with no captured console errors.
-- Live model calls, OSV lookups, account login, and hosting deployment were not invoked.
-
-These checks verify the foundation and development environment; they do not mark unfinished product features as implemented.
+The initial dashboard contains six services and five documented dependencies. Feature exports from Members 1 and 2 must be bound in `integration/bindings.jac` to enable live simulation, scanning, investigation, impact, and recovery. Unbound features report unavailable status. See [integration handoff](MEMBER3_INTEGRATION.md).

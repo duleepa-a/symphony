@@ -1,13 +1,14 @@
 """Operation feedback never substitutes a failed request with an empty success."""
 import from ..models.view_models { PanelStatus }
 def:pub PanelFeedback(feedback: PanelStatus, idle_message: str) -> JsxElement {
-    <div
-        className={f"panel-feedback feedback-{feedback.status}"}
-        role={"alert" if feedback.status == "failed" else "status"}
-        aria-live="polite"
-        aria-atomic="true"
-    >
-        {feedback.message
+    return
+        <div
+            className={f"panel-feedback feedback-{feedback.status}"}
+            role={"alert" if feedback.status == "failed" else "status"}
+            aria-live="polite"
+            aria-atomic="true"
+        >
+            {feedback.message
             or (
                 "Request in progress…"
                     if feedback.status in ["loading", "running"]
@@ -17,5 +18,5 @@ def:pub PanelFeedback(feedback: PanelStatus, idle_message: str) -> JsxElement {
                             if feedback.status == "completed"
                             else idle_message
             )}
-    </div>
+        </div>;
 }

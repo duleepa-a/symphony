@@ -10,34 +10,35 @@ def:pub RecoveryPanel(
     disabled: bool,
     on_preview: Callable[[], None]
 ) -> JsxElement {
-    <section
-        className="panel recovery-panel"
-        aria-labelledby="recovery-title"
-        aria-busy={is_busy(result.feedback.status)}
-    >
-        <div className="panel-heading">
-            <div>
-                <p className="section-kicker">Non-destructive verification</p>
-                <h2 id="recovery-title">Recovery preview</h2>
+    return
+        <section
+            className="panel recovery-panel"
+            aria-labelledby="recovery-title"
+            aria-busy={is_busy(result.feedback.status)}
+        >
+            <div className="panel-heading">
+                <div>
+                    <p className="section-kicker">Non-destructive verification</p>
+                    <h2 id="recovery-title">Recovery preview</h2>
+                </div>
+                <StatusBadge status={result.feedback.status}/>
             </div>
-            <StatusBadge status={result.feedback.status}/>
-        </div>
-        <p className="helper-text">
-            Candidate service:{" "}
-            <strong>{service_id}</strong>
-            . Preview does not apply a repair to the active incident.
-        </p>
-        <ActionButton
-            label="Preview recovery"
-            on_click={on_preview}
-            busy={is_busy(result.feedback.status)}
-            disabled={disabled}
-        />
-        <PanelFeedback
-            feedback={result.feedback}
-            idle_message="Compare a candidate repair against the current simulation."
-        />
-        {has_result(result.feedback.status)
+            <p className="helper-text">
+                Candidate service:{" "}
+                <strong>{service_id}</strong>
+                . Preview does not apply a repair to the active incident.
+            </p>
+            <ActionButton
+                label="Preview recovery"
+                on_click={on_preview}
+                busy={is_busy(result.feedback.status)}
+                disabled={disabled}
+            />
+            <PanelFeedback
+                feedback={result.feedback}
+                idle_message="Compare a candidate repair against the current simulation."
+            />
+            {has_result(result.feedback.status)
             and <div className="recovery-results">
                 <h3>Candidate repair</h3>
                 <p>{result.repair}</p>
@@ -65,5 +66,5 @@ def:pub RecoveryPanel(
                 <h3>Verification outcome</h3>
                 <p role="status">{result.outcome}</p>
             </div>}
-    </section>
+        </section>;
 }

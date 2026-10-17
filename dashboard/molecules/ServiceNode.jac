@@ -13,19 +13,20 @@ def:pub ServiceNode(
         "database": "node-database"
     };
     node_class = classes[service.id] if service.id in classes else "";
-    <button
-        type="button"
-        className={f"service-node {node_class} state-{service.state}"}
-        aria-pressed={selected}
-        aria-label={f"Select {service.name}, {service.state}"}
-        onClick={lambda { on_select(service.id); }}
-        data-service-id={service.id}
-        data-state={service.state}
-    >
-        <span className="node-state" aria-hidden="true"></span>
-        <span>
-            <strong>{service.name}</strong>
-            <small>{service.state}</small>
-        </span>
-    </button>
+    return
+        <button
+            type="button"
+            className={f"service-node {node_class} state-{service.state}"}
+            aria-pressed={selected}
+            aria-label={f"Select {service.name}, {service.state}"}
+            onClick={lambda { on_select(service.id); }}
+            data-service-id={service.id}
+            data-state={service.state}
+        >
+            <span className="node-state" aria-hidden="true"></span>
+            <span>
+                <strong>{service.name}</strong>
+                <small>{service.state}</small>
+            </span>
+        </button>;
 }

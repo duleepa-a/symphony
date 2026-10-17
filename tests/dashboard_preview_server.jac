@@ -7,8 +7,14 @@ with entry {
 }
 
 def:pub fixture_mode(case_name: str) -> str {
-    if case_name
-        not in ["completed", "empty", "partial", "failed", "not_implemented", "slow"] {
+    if case_name not in [
+        "completed",
+        "empty",
+        "partial",
+        "failed",
+        "not_implemented",
+        "slow"
+    ] {
         return "invalid";
     }
     configure_ports(fixture_ports());

@@ -1,25 +1,50 @@
 """Presentation models and defensive decoding at the JSON integration boundary."""
 
-import from contracts {
-    OperationEnvelope,
-    DashboardState,
-    Dependency,
-    DashboardSummary
+import type from ...contracts { OperationEnvelope, DashboardState, Dependency }
+
+obj:pub RequestScope {
+    has changing: bool = False,
+        generation: int = 0,
+        load_request: int = 0,
+        selected_service: str = "payment",
+        run_id: str = "",
+        request_ids: dict[str, int] = {
+            "investigation": 0,
+            "scan": 0,
+            "impact": 0,
+            "recovery": 0
+        };
 }
 
-obj PanelStatus {
+obj:pub DependencyView {
+    has source_id: str,
+        target_id: str,
+        kind: str = "discovered",
+        evidence_ids: list[str] = [];
+}
+
+obj:pub OverviewView {
+    has total_services: int = 0,
+        healthy_services: int = 0,
+        degraded_services: int = 0,
+        failed_services: int = 0,
+        discovered_dependencies: int = 0,
+        vulnerability_findings: int = 0;
+}
+
+obj:pub PanelStatus {
     has status: str = "idle",
         message: str = "";
 }
 
-obj AdvisoryView {
+obj:pub AdvisoryView {
     has id: str,
         summary: str = "",
         severity: str = "unknown",
         url: str = "";
 }
 
-obj PackageView {
+obj:pub PackageView {
     has name: str,
         ecosystem: str = "",
         version: str = "",
@@ -28,14 +53,14 @@ obj PackageView {
         advisories: list[AdvisoryView] = [];
 }
 
-obj ScanView {
+obj:pub ScanView {
     has feedback: PanelStatus = PanelStatus(),
         service_id: str = "",
         packages: list[PackageView] = [],
         finding_count: int = 0;
 }
 
-obj EvidenceView {
+obj:pub EvidenceView {
     has id: str,
         tool: str = "",
         service_id: str = "",
@@ -43,16 +68,16 @@ obj EvidenceView {
         simulation_run_id: str = "";
 }
 
-obj InvestigationView {
+obj:pub InvestigationView {
     has feedback: PanelStatus = PanelStatus(),
         timeline: list[str] = [],
         evidence: list[EvidenceView] = [],
         candidates: list[str] = [],
-        dependencies: list[Dependency] = [],
+        dependencies: list[DependencyView] = [],
         explanation: str = "";
 }
 
-obj ImpactView {
+obj:pub ImpactView {
     has feedback: PanelStatus = PanelStatus(),
         dependents: list[str] = [],
         relationships: list[str] = [],
@@ -60,32 +85,40 @@ obj ImpactView {
         priority: str = "unknown";
 }
 
-obj RecoveryRow {
+obj:pub RecoveryRow {
     has service_id: str,
         before: str = "unknown",
         after: str = "unknown";
 }
 
-obj RecoveryView {
+obj:pub RecoveryView {
     has feedback: PanelStatus = PanelStatus(),
         repair: str = "",
         rows: list[RecoveryRow] = [],
         outcome: str = "";
 }
 
-def value(raw: any, key: str, fallback: any = None) -> any {
+def:pub value(raw: dict[str, any] | None, key: str, fallback: any = None) -> any {
     if raw is None {
         return fallback;
     }
     return raw[key] if key in raw else fallback;
 }
 
-def text(raw: any, fallback: str = "") -> str {
+def:pub dashboard_is_valid(raw: any) -> bool {
+    return bool(raw)
+    and isinstance(value(raw, "services"), list)
+    and isinstance(value(raw, "dependencies"), list)
+    and isinstance(value(raw, "simulation_run_id"), str)
+    and bool(value(raw, "simulation_run_id"));
+}
+
+def:pub text(raw: any, fallback: str = "") -> str {
     return fallback if raw is None else str(raw);
 }
 
-def observation_text(raw: any) -> str {
-    # Jac 0.37.25 client isinstance(dict) does not recognize plain JSON objects.
+def:pub observation_text(raw: any) -> str {
+    # Decode JSON objects recursively without relying on client dict identity.
     if raw is None or isinstance(raw, (str, int, float, bool)) {
         return text(raw);
     }
@@ -97,14 +130,14 @@ def observation_text(raw: any) -> str {
     );
 }
 
-def strings(raw: any) -> list[str] {
+def:pub strings(raw: any) -> list[str] {
     if raw is None {
         return [];
     }
     return [str(item) for item in raw];
 }
 
-def status_view(result: OperationEnvelope) -> PanelStatus {
+def:pub status_view(result: OperationEnvelope) -> PanelStatus {
     allowed = [
         "idle",
         "loading",
@@ -125,19 +158,19 @@ def status_view(result: OperationEnvelope) -> PanelStatus {
     );
 }
 
-def is_busy(status: str) -> bool {
+def:pub is_busy(status: str) -> bool {
     return status in ["loading", "running"];
 }
 
-def has_result(status: str) -> bool {
+def:pub has_result(status: str) -> bool {
     return status in ["completed", "partial"];
 }
 
-def safe_advisory_url(url: str) -> str {
+def:pub safe_advisory_url(url: str) -> str {
     return url if url.startswith("https://") or url.startswith("http://") else "";
 }
 
-def scan_view(result: OperationEnvelope, service_id: str) -> ScanView {
+def:pub scan_view(result: OperationEnvelope, service_id: str) -> ScanView {
     view = ScanView(feedback=status_view(result), service_id=service_id);
     if not has_result(view.feedback.status) {
         return view;
@@ -181,7 +214,7 @@ def scan_view(result: OperationEnvelope, service_id: str) -> ScanView {
     return view;
 }
 
-def investigation_view(result: OperationEnvelope) -> InvestigationView {
+def:pub investigation_view(result: OperationEnvelope) -> InvestigationView {
     view = InvestigationView(feedback=status_view(result));
     if not has_result(view.feedback.status) {
         return view;
@@ -214,7 +247,7 @@ def investigation_view(result: OperationEnvelope) -> InvestigationView {
     }
     for raw in value(result.data, "discovered_dependencies", []) {
         view.dependencies.append(
-            Dependency(
+            DependencyView(
                 source_id=text(value(raw, "source_id", "")),
                 target_id=text(value(raw, "target_id", "")),
                 kind="discovered",
@@ -225,7 +258,7 @@ def investigation_view(result: OperationEnvelope) -> InvestigationView {
     return view;
 }
 
-def impact_view(result: OperationEnvelope) -> ImpactView {
+def:pub impact_view(result: OperationEnvelope) -> ImpactView {
     view = ImpactView(feedback=status_view(result));
     if not has_result(view.feedback.status) {
         return view;
@@ -257,7 +290,7 @@ def impact_view(result: OperationEnvelope) -> ImpactView {
     return view;
 }
 
-def recovery_view(result: OperationEnvelope) -> RecoveryView {
+def:pub recovery_view(result: OperationEnvelope) -> RecoveryView {
     view = RecoveryView(feedback=status_view(result));
     if not has_result(view.feedback.status) {
         return view;
@@ -272,8 +305,9 @@ def recovery_view(result: OperationEnvelope) -> RecoveryView {
         service_id = text(value(item, "id", value(item, "service_id", "")));
         after_state = "unknown";
         for updated in after {
-            if text(value(updated, "id", value(updated, "service_id", "")))
-                == service_id {
+            if text(
+                value(updated, "id", value(updated, "service_id", ""))
+            ) == service_id {
                 after_state = text(value(updated, "state", "unknown"));
             }
         }
@@ -288,7 +322,7 @@ def recovery_view(result: OperationEnvelope) -> RecoveryView {
     return view;
 }
 
-def request_is_current(
+def:pub request_is_current(
     request_epoch: int,
     active_epoch: int,
     request_id: int,
@@ -300,15 +334,16 @@ def request_is_current(
     response_run: str
 ) -> bool {
     return request_epoch == active_epoch
-        and request_id == active_id
-        and requested_service == selected_service
-        and requested_run == active_run
-        and (not response_run or response_run == active_run);
+    and request_id == active_id
+    and requested_service == selected_service
+    and requested_run == active_run
+    and (not response_run or response_run == active_run);
 }
 
-def merge_dependencies(
-    documented: list[Dependency], discovered: list[Dependency]
-) -> list[Dependency] {
+def:pub merge_dependencies(
+    documented: list[Dependency | DependencyView],
+    discovered: list[Dependency | DependencyView]
+) -> list[Dependency | DependencyView] {
     merged = documented.copy();
     for dependency in discovered {
         if dependency.kind != "discovered" or not dependency.evidence_ids {
@@ -316,7 +351,7 @@ def merge_dependencies(
         }
         if not `any(
             item.source_id == dependency.source_id
-                and item.target_id == dependency.target_id for item in merged
+            and item.target_id == dependency.target_id for item in merged
         ) {
             merged.append(dependency);
         }
@@ -324,10 +359,12 @@ def merge_dependencies(
     return merged;
 }
 
-def overview_summary(
-    state: DashboardState, dependencies: list[Dependency], findings: dict[str, int]
-) -> DashboardSummary {
-    return DashboardSummary(
+def:pub overview_summary(
+    state: DashboardState,
+    dependencies: list[Dependency | DependencyView],
+    findings: dict[str, int]
+) -> OverviewView {
+    return OverviewView(
         total_services=len(state.services),
         healthy_services=len(
             [
