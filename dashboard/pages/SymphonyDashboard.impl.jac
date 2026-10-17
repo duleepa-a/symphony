@@ -9,6 +9,176 @@ impl SymphonyDashboard.clearResults -> None {
     recovery = RecoveryView();
     discovered = [];
     findings = {};
+    service_risks = [];
+}
+
+impl SymphonyDashboard.applyAssessment(result: OperationEnvelope) -> None {
+    automation = status_view(result);
+    if not has_result(result.status) {
+        return;
+    }
+    if bool(value(result.data, "skipped", False)) {
+        automation = PanelStatus(
+            status="completed",
+            message=text(
+                value(result.data, "reason", "No service requires assessment.")
+            )
+        );
+        return;
+    }
+    assessment_id = text(value(result.data, "assessment_id", ""));
+    if assessment_id {
+        latest_assessment_id.current = assessment_id;
+    }
+    target = text(value(result.data, "primary_service_id", selected_service));
+    if target {
+        selected_service = target;
+        scope = request_scope.current;
+        if scope is not None {
+            scope.selected_service = target;
+        }
+    }
+
+    next_risks: list[ServiceRiskView] = [];
+    next_findings = {** findings};
+    for item in value(result.data, "service_assessments", []) {
+        scan_step = value(item, "scan", {});
+        analyst_step = value(item, "security_analysis", {});
+        service_id = text(value(item, "service_id", ""));
+        count = int(value(item, "finding_count", 0));
+        next_risks.append(
+            ServiceRiskView(
+                service_id=service_id,
+                service_name=text(value(item, "service_name", service_id)),
+                scan_status=text(value(scan_step, "status", "failed")),
+                assessment_status=text(value(analyst_step, "status", "failed")),
+                finding_count=count,
+                high_finding_count=int(value(item, "high_finding_count", 0)),
+                priority=text(value(item, "analyst_priority", "unknown"))
+            )
+        );
+        next_findings[service_id] = count;
+    }
+    if next_risks {
+        service_risks = next_risks;
+        findings = next_findings;
+    }
+
+    investigation_result = operation_envelope(value(result.data, "investigation", {}));
+    next_investigation = investigation_view(investigation_result);
+    investigation = next_investigation;
+    if has_result(next_investigation.feedback.status) {
+        discovered = merge_dependencies(discovered, next_investigation.dependencies);
+    }
+
+    scan_result = operation_envelope(value(result.data, "scan", {}));
+    next_scan = scan_view(scan_result, target);
+    scan = next_scan;
+    if has_result(next_scan.feedback.status) {
+        selected_findings = {** findings};
+        selected_findings[target] = next_scan.finding_count;
+        findings = selected_findings;
+    }
+    impact = impact_view(operation_envelope(value(result.data, "impact", {})));
+    assessment = security_assessment_view(
+        operation_envelope(value(result.data, "security_analysis", {}))
+    );
+    recovery = recovery_view(operation_envelope(value(result.data, "recovery", {})));
+    proposal = recovery_proposal_view(
+        operation_envelope(value(result.data, "recovery_agent", {}))
+    );
+    automation = PanelStatus(
+        status=result.status,
+        message=f"Full assessment completed for {target}."
+            if result.status == "completed"
+            else f"Full assessment completed partially for {target}; review step-level errors."
+    );
+}
+
+impl SymphonyDashboard.assessAll(
+    trigger: str, service_id: str = "", force: bool = False
+) -> None {
+    if bool(assessment_busy.current) {
+        return;
+    }
+    assessment_busy.current = True;
+    automation = PanelStatus(
+        status="loading",
+        message="Collecting diagnostics, vulnerabilities, impact, and recovery guidance…"
+    );
+    try {
+        __jacClearCache();
+        result = await run_full_assessment(trigger, service_id, force);
+        applyAssessment(result);
+        __jacClearCache();
+        snapshot = await get_dashboard_state();
+        if dashboard_is_valid(snapshot) {
+            dashboard = snapshot;
+            observed_states.current = service_states(snapshot);
+            scope = request_scope.current;
+            if scope is not None {
+                scope.run_id = snapshot.simulation_run_id;
+            }
+        }
+    } except Exception {
+        automation = PanelStatus(
+            status="failed",
+            message="The full assessment could not complete. Existing results were not treated as current."
+        );
+    } finally {
+        assessment_busy.current = False;
+    }
+}
+
+impl SymphonyDashboard.pollHealth -> None {
+    if bool(poll_busy.current) or bool(assessment_busy.current) {
+        return;
+    }
+    poll_busy.current = True;
+    try {
+        __jacClearCache();
+        snapshot = await get_dashboard_state();
+        if not dashboard_is_valid(snapshot) {
+            raise ValueError("Invalid dashboard response");
+        }
+        previous = observed_states.current or {};
+        current = service_states(snapshot);
+        failures = newly_unhealthy(previous, current);
+        unhealthy = [
+            service_id
+            for (service_id, state) in current.items()
+            if state in ["down", "degraded"]
+        ];
+        first_observation = not bool(previous);
+        changed_with_active_failure = bool(previous)
+        and previous != current
+        and bool(unhealthy);
+        observed_states.current = current;
+        dashboard = snapshot;
+        scope = request_scope.current;
+        if scope is not None {
+            scope.run_id = snapshot.simulation_run_id;
+        }
+        if failures or changed_with_active_failure {
+            await assessAll("page_detection" if first_observation else "health_change");
+        } else {
+            __jacClearCache();
+            latest = await get_latest_full_assessment();
+            incoming_id = text(value(latest.data, "assessment_id", ""));
+            if has_result(latest.status)
+            and incoming_id
+            and incoming_id != latest_assessment_id.current {
+                applyAssessment(latest);
+            }
+        }
+    } except Exception {
+        # Polling failures do not replace the last known dashboard or manual controls.
+        if dashboard is None {
+            load_error = "Dashboard polling failed. Check the server and retry.";
+        }
+    } finally {
+        poll_busy.current = False;
+    }
 }
 
 impl SymphonyDashboard.selectService(service_id: str) -> None {

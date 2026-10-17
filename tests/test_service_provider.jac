@@ -15,6 +15,7 @@ import from integration.real_provider {
     real_get_logs,
     real_trace_requests
 }
+import from integration.real_analysis { real_analyze_impact, real_preview_recovery }
 import from integration.ports { configure_ports }
 import from integration.bindings { production_ports }
 import from integration.gateway { invoke }
@@ -125,12 +126,84 @@ test "real dashboard reflects offline services instead of static healthy state" 
     os.environ["SERVICE_FRONTEND_URL"] = "http://127.0.0.1:59999";
     try {
         state = real_dashboard();
-        frontend = [service for service in state.services if service.id == "frontend"][0];
+        frontend = [
+            service
+            for service in state.services
+            if service.id == "frontend"
+        ][0];
         assert frontend.state == "down";
+        assert state.service_mode == "real";
         assert state.summary.failed_services >= 1;
         assert len(state.dependencies) == 5;
     } finally {
         os.environ.pop("SERVICE_FRONTEND_URL", None);
+        if original is not None {
+            os.environ["SYMPHONY_SERVICE_MODE"] = original;
+        } else {
+            os.environ.pop("SYMPHONY_SERVICE_MODE", None);
+        }
+    }
+}
+
+test "real mode refuses to claim simulated incident control" {
+    original = os.environ.get("SYMPHONY_SERVICE_MODE");
+    os.environ["SYMPHONY_SERVICE_MODE"] = "real";
+    try {
+        configure_ports(production_ports());
+        started = invoke("start_incident", {"incident_id": "auth_outage"});
+        reset = invoke("reset_incident", {});
+        assert started.status == "not_implemented";
+        assert reset.status == "not_implemented";
+        assert started.error is not None;
+        assert reset.error is not None;
+        if started.error is not None {
+            assert started.error.code == "real_service_control_unavailable";
+        }
+    } finally {
+        if original is not None {
+            os.environ["SYMPHONY_SERVICE_MODE"] = original;
+        } else {
+            os.environ.pop("SYMPHONY_SERVICE_MODE", None);
+        }
+        configure_ports(production_ports());
+    }
+}
+
+test "real impact and recovery label observed data without claiming a repair" {
+    original = os.environ.get("SYMPHONY_SERVICE_MODE");
+    os.environ["SYMPHONY_SERVICE_MODE"] = "real";
+    overrides = {
+        f"SERVICE_{service.upper()}_URL": "http://127.0.0.1:59999"
+        for service in [
+            "frontend",
+            "api_gateway",
+            "payment",
+            "catalog",
+            "auth",
+            "database"
+        ]
+    };
+    previous = {key: os.environ.get(key) for key in overrides};
+    for (key, url) in overrides.items() {
+        os.environ[key] = url;
+    }
+    try {
+        impact = real_analyze_impact("payment");
+        recovery = real_preview_recovery("payment");
+        assert impact.status == "completed";
+        assert impact.data["analysis_source"] == "real_service_health";
+        assert recovery.status == "completed";
+        assert recovery.data["analysis_source"] == "real_service_health";
+        assert recovery.data["outcome"] == "not_applied";
+        assert recovery.data["before"] == recovery.data["after"];
+    } finally {
+        for (key, old) in previous.items() {
+            if old is not None {
+                os.environ[key] = old;
+            } else {
+                os.environ.pop(key, None);
+            }
+        }
         if original is not None {
             os.environ["SYMPHONY_SERVICE_MODE"] = original;
         } else {

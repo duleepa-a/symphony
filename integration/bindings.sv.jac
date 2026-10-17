@@ -14,6 +14,7 @@ sv {
         real_get_logs,
         real_trace_requests
     }
+    import from integration.real_analysis { real_analyze_impact, real_preview_recovery }
     import from simulation.state { sim_start_incident, sim_reset }
     import from simulation.diagnostics {
         sim_check_health,
@@ -22,16 +23,37 @@ sv {
     }
     import from simulation.impact { sim_analyze_impact }
     import from simulation.recovery { sim_preview_recovery }
-    import from contracts { OperationEnvelope }
+    import from contracts { OperationEnvelope, OperationError }
 
     def impact(service_id: str) -> OperationEnvelope {
         # Keep potential_exposure as a list for agent consumers; the dashboard joins it.
+        if is_real_mode() {
+            return real_analyze_impact(service_id);
+        }
         return simulation_call(sim_analyze_impact, {"service_id": service_id});
     }
     def start(incident_id: str) -> OperationEnvelope {
+        if is_real_mode() {
+            return OperationEnvelope(
+                status="not_implemented",
+                error=OperationError(
+                    code="real_service_control_unavailable",
+                    message="Real service state is controlled through Docker. Use mock mode to trigger simulated incidents."
+                )
+            );
+        }
         return simulation_call(sim_start_incident, {"incident_id": incident_id});
     }
     def reset -> OperationEnvelope {
+        if is_real_mode() {
+            return OperationEnvelope(
+                status="not_implemented",
+                error=OperationError(
+                    code="real_service_control_unavailable",
+                    message="Real service state is controlled through Docker. Restart or reconfigure the containers directly."
+                )
+            );
+        }
         return simulation_call(sim_reset, {});
     }
     def health(service_id: str) -> OperationEnvelope {
@@ -53,6 +75,9 @@ sv {
         return simulation_call(sim_trace_requests, {"service_id": service_id});
     }
     def recovery(service_id: str) -> OperationEnvelope {
+        if is_real_mode() {
+            return real_preview_recovery(service_id);
+        }
         return simulation_call(sim_preview_recovery, {"service_id": service_id});
     }
     def production_ports(agents: AgentPorts | None = None) -> FeaturePorts {
@@ -60,7 +85,7 @@ sv {
         def security_agent(service_id: str) -> OperationEnvelope {
             return security_analysis(service_id, configured);
         }
-        def recovery_agent() -> OperationEnvelope {
+        def recovery_agent -> OperationEnvelope {
             return recovery_analysis(configured);
         }
         return FeaturePorts(

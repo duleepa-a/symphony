@@ -141,7 +141,8 @@ def sim_dashboard_state -> DashboardState {
             failed_services=failed,
             discovered_dependencies=len(sim_state.discovered)
         ),
-        simulation_run_id=sim_state.simulation_run_id
+        simulation_run_id=sim_state.simulation_run_id,
+        service_mode="mock"
     );
 }
 

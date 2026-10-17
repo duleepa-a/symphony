@@ -24,6 +24,7 @@ sv {
     import from integration.service_provider { is_real_mode }
     import from integration.real_provider {
         real_check_health,
+        real_dashboard,
         real_get_logs,
         real_trace_requests
     }
@@ -42,7 +43,9 @@ sv {
         # while reset and other short simulator operations remain available.
         with investigation_lock {
             with simulation_lock {
-                snapshot = sim_dashboard_state();
+                snapshot = real_dashboard()
+                    if is_real_mode()
+                    else sim_dashboard_state();
                 run_id = snapshot.simulation_run_id;
                 context = json.dumps(
                     {
@@ -130,7 +133,7 @@ sv {
             }
         }
     }
-    def investigate() -> OperationEnvelope {
+    def investigate -> OperationEnvelope {
         return investigate_with(run_investigation_impl);
     }
 }

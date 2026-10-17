@@ -12,7 +12,10 @@ import from operations {
     analyze_security_impact,
     preview_recovery,
     run_security_analysis,
-    run_recovery_agent
+    run_recovery_agent,
+    run_full_assessment,
+    get_latest_full_assessment,
+    monitoring_alert
 }
 
 import "./styles.css";

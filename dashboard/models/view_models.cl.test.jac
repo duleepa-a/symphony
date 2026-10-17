@@ -237,6 +237,21 @@ test "invalid RPC snapshots cannot replace the displayed dashboard" {
     );
 }
 
+test "automation helpers detect only newly unhealthy services and decode steps" {
+    previous = {"frontend": "healthy", "payment": "down"};
+    current = {"frontend": "down", "payment": "down"};
+    assert newly_unhealthy(previous, current) == ["frontend"];
+    decoded = operation_envelope(
+        {
+            "status": "failed",
+            "data": {},
+            "error": {"code": "fixture", "message": "Fixture failure"}
+        }
+    );
+    assert decoded.status == "failed";
+    assert decoded.error is not None and decoded.error.code == "fixture";
+}
+
 
 test "agent assessment keeps model and rule priorities separate with incomplete coverage" {
     view = security_assessment_view(

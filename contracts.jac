@@ -34,7 +34,8 @@ obj DashboardState {
     has services: list[Service] = [],
         dependencies: list[Dependency] = [],
         summary: DashboardSummary = DashboardSummary(),
-        simulation_run_id: str = "initial";
+        simulation_run_id: str = "initial",
+        service_mode: str = "mock";
 }
 
 obj OperationError {

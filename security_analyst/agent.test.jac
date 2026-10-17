@@ -162,22 +162,25 @@ test "a partial scan is reported as partial and is not an all-clear" {
     assert "not an all-clear" in str(result.data["explanation"]);
 }
 
-test "invented advisories and overstated impact fail validation" {
+test "unsafe model judgments fall back to cited evidence-only assessments" {
     run_id = start_run();
     invented = good_judgment();
     invented.findings[0].advisory_id = "GHSA-invented";
-    assert code_of(
-        run_security_analysis_with(
-            fixed_judge(invented), "auth", scan_for("findings", run_id), run_id
-        )
-    ) == "unsupported_advisory";
+    invented_result = run_security_analysis_with(
+        fixed_judge(invented), "auth", scan_for("findings", run_id), run_id
+    );
+    assert invented_result.status == "completed";
+    assert invented_result.data["analysis_source"] == "deterministic_fallback";
+    assert invented_result.data["model_validation_error"] == "unsupported_advisory";
+    assert invented_result.data["findings"][0]["advisory_id"] == "GHSA-fixture-0001";
     overstated = good_judgment();
     overstated.explanation = "Payment is compromised.";
-    assert code_of(
-        run_security_analysis_with(
-            fixed_judge(overstated), "auth", scan_for("findings", run_id), run_id
-        )
-    ) == "overstated_impact";
+    overstated_result = run_security_analysis_with(
+        fixed_judge(overstated), "auth", scan_for("findings", run_id), run_id
+    );
+    assert overstated_result.status == "completed";
+    assert overstated_result.data["analysis_source"] == "deterministic_fallback";
+    assert overstated_result.data["model_validation_error"] == "overstated_impact";
 }
 
 test "a lower model priority is returned beside the rule-based one" {

@@ -4,8 +4,8 @@ import from contracts { AssessedFinding, OperationError, SecurityAssessment }
 import from agent_support.claims { asserts_terms }
 import from .tools { SecurityJudgment, advisories_in }
 
-glob PRIORITY_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2};
-glob OVERSTATED_WORDS = ["compromised", "breached", "exploited", "hacked"];
+glob PRIORITY_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2},
+     OVERSTATED_WORDS = ["compromised", "breached", "exploited", "hacked"];
 
 def normalize_priority(priority: str) -> str {
     value = priority.strip().lower();
@@ -161,12 +161,48 @@ def deterministic_assessment(
     );
 }
 
+def evidence_only_assessment(
+    scan: dict[str, any],
+    service_id: str,
+    run_id: str,
+    dependents: list[str],
+    rule_based_priority: str,
+    reason: str
+) -> SecurityAssessment {
+    findings = [
+        AssessedFinding(
+            advisory_id=item["advisory_id"],
+            package=item["package"],
+            risk=f"OSV advisory {item[
+                'advisory_id'
+            ]} applies to the scanned package version; reported severity is {item[
+                'severity'
+            ]}. Review applicability before remediation.",
+            cited_advisory_ids=[item["advisory_id"]]
+        ) for item in advisories_in(scan)
+    ];
+    return SecurityAssessment(
+        service_id=service_id,
+        simulation_run_id=run_id,
+        findings=findings,
+        dependents=dependents,
+        priority=rule_based_priority,
+        rule_based_priority=rule_based_priority,
+        explanation=f"The model response was rejected because {reason.lower()} This evidence-only fallback reports OSV findings and known dependency reach without adding unsupported claims."
+    );
+}
+
 def assessment_to_dict(
     assessment: SecurityAssessment,
     scan_status: str,
     finding_count: int,
     tool_timeline: list[str],
+    analysis_source: str = ""
 ) -> dict[str, any] {
+    source = analysis_source;
+    if not source {
+        source = "deterministic" if finding_count == 0 else "model";
+    }
     return {
         "service_id": assessment.service_id,
         "simulation_run_id": assessment.simulation_run_id,
@@ -183,7 +219,7 @@ def assessment_to_dict(
         "priority": assessment.priority,
         "rule_based_priority": assessment.rule_based_priority,
         "explanation": assessment.explanation,
-        "analysis_source": "deterministic" if finding_count == 0 else "model",
+        "analysis_source": source,
         "scan_status": scan_status,
         "finding_count": finding_count,
         "tool_timeline": tool_timeline,

@@ -10,7 +10,7 @@ sv {
     import urllib.request;
     import urllib.error;
 
-    import from catalog { documented_dependencies, initial_services }
+    import from catalog { initial_services }
     import from contracts {
         DashboardState,
         DashboardSummary,
@@ -18,7 +18,13 @@ sv {
         OperationEnvelope,
         Service
     }
-    import from simulation.state { sim_state, is_known_service, unknown_service }
+    import from integration.service_provider { get_service_mode }
+    import from simulation.state {
+        sim_state,
+        is_known_service,
+        known_dependencies,
+        unknown_service
+    }
 
     glob DEFAULT_SERVICE_PORTS: dict[str, int] = {
              "frontend": 8100,
@@ -150,21 +156,47 @@ sv {
             );
         }
 
-        healthy = len([service for service in services if service.state == "healthy"]);
-        degraded = len([service for service in services if service.state == "degraded"]);
-        failed = len([service for service in services if service.state == "down"]);
+        healthy = len(
+            [
+                service
+                for service in services
+                if service.state == "healthy"
+            ]
+        );
+        degraded = len(
+            [
+                service
+                for service in services
+                if service.state == "degraded"
+            ]
+        );
+        failed = len(
+            [
+                service
+                for service in services
+                if service.state == "down"
+            ]
+        );
+        dependencies = known_dependencies();
         return DashboardState(
             services=services,
-            dependencies=documented_dependencies(),
+            dependencies=dependencies,
             summary=DashboardSummary(
                 total_services=len(services),
                 healthy_services=healthy,
                 degraded_services=degraded,
                 failed_services=failed,
-                discovered_dependencies=0,
+                discovered_dependencies=len(
+                    [
+                        link
+                        for link in dependencies
+                        if link.kind == "discovered"
+                    ]
+                ),
                 vulnerability_findings=0
             ),
-            simulation_run_id=sim_state.simulation_run_id
+            simulation_run_id=sim_state.simulation_run_id,
+            service_mode=get_service_mode()
         );
     }
 
