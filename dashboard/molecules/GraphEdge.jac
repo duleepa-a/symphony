@@ -3,7 +3,9 @@ import type from ...contracts { Dependency }
 import from ..models.view_models { DependencyView }
 
 
-def:pub GraphEdge(dependency: Dependency | DependencyView) -> JsxElement {
+def:pub GraphEdge(
+    dependency: Dependency | DependencyView, active: bool = False
+) -> JsxElement {
     coordinates = {
         "frontend": (120, 220),
         "api_gateway": (380, 220),
@@ -22,7 +24,9 @@ def:pub GraphEdge(dependency: Dependency | DependencyView) -> JsxElement {
     return
         <path
             d={d}
-            className={f"dependency-edge edge-{dependency.kind}"}
+            className={f"dependency-edge edge-{dependency.kind}" + (
+                " edge-active" if active else ""
+            )}
             data-kind={dependency.kind}
             data-source={dependency.source_id}
             data-target={dependency.target_id}
