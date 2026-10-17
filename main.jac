@@ -10,7 +10,9 @@ import from operations {
     run_investigation,
     scan_service_dependencies,
     analyze_security_impact,
-    preview_recovery
+    preview_recovery,
+    run_security_analysis,
+    run_recovery_agent
 }
 
 import "./styles.css";
