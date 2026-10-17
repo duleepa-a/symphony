@@ -34,9 +34,11 @@ def validate_investigation_result(
     }
 
     return InvestigationResult(
-        status="completed"
-            if model_result.status == "completed"
-            else model_result.status,
+        # Model status describes the incident in some responses, rather than
+        # whether this investigation ran. Current tool evidence is the
+        # authoritative completion signal; provider failures are handled by
+        # run_investigation_impl before validation.
+        status="completed",
         tool_timeline=actual_timeline,
         observed_evidence=observations,
         candidate_root_causes=model_result.candidate_root_causes,

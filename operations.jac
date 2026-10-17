@@ -46,3 +46,11 @@ def:pub analyze_security_impact(service_id: str) -> OperationEnvelope {
 def:pub preview_recovery(service_id: str) -> OperationEnvelope {
     return invoke("preview_recovery", {"service_id": service_id});
 }
+
+def:pub run_security_analysis(service_id: str) -> OperationEnvelope {
+    return invoke("run_security_analysis", {"service_id": service_id});
+}
+
+def:pub run_recovery_agent -> OperationEnvelope {
+    return invoke("run_recovery_agent", {});
+}
