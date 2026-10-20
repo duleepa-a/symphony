@@ -1,6 +1,7 @@
 # Six services matching Symphony's default catalog and ports (8100-8105).
-# Payment calls Auth although the documented graph does not list that link; the
-# Investigator can only learn it from request traces.
+# symphony.* labels let Symphony find these services (SYMPHONY_DISCOVERY=docker).
+# Payment calls Auth but its labels do not declare that link, so the Investigator
+# can only learn it from request traces.
 #
 #   docker compose -f reference_stack/docker-compose.yml up --build -d
 #   docker compose -f reference_stack/docker-compose.yml stop auth    # real incident
@@ -17,12 +18,21 @@ services:
       SERVICE_NAME: frontend
       DEPENDS_ON: api_gateway=http://api_gateway:8000
     ports: ["8100:8000"]
+    labels:
+      symphony.id: frontend
+      symphony.port: "8000"
+      symphony.depends_on: "api_gateway"
+      symphony.packages: "npm:react@18.2.0"
 
   auth:
     <<: *service
     environment:
       SERVICE_NAME: auth
     ports: ["8101:8000"]
+    labels:
+      symphony.id: auth
+      symphony.port: "8000"
+      symphony.packages: "PyPI:pyjwt@1.7.1"
 
   payment:
     <<: *service
@@ -30,6 +40,11 @@ services:
       SERVICE_NAME: payment
       DEPENDS_ON: database=http://database:8000,auth=http://auth:8000
     ports: ["8102:8000"]
+    labels:
+      symphony.id: payment
+      symphony.port: "8000"
+      symphony.depends_on: "database"
+      symphony.packages: "PyPI:jinja2@2.4.1"
 
   catalog:
     <<: *service
@@ -37,6 +52,11 @@ services:
       SERVICE_NAME: catalog
       DEPENDS_ON: database=http://database:8000
     ports: ["8103:8000"]
+    labels:
+      symphony.id: catalog
+      symphony.port: "8000"
+      symphony.depends_on: "database"
+      symphony.packages: "npm:lodash@4.17.20"
 
   api_gateway:
     <<: *service
@@ -44,9 +64,18 @@ services:
       SERVICE_NAME: api_gateway
       DEPENDS_ON: payment=http://payment:8000,catalog=http://catalog:8000
     ports: ["8104:8000"]
+    labels:
+      symphony.id: api_gateway
+      symphony.port: "8000"
+      symphony.depends_on: "payment,catalog"
+      symphony.packages: "PyPI:fastapi@0.95.0"
 
   database:
     <<: *service
     environment:
       SERVICE_NAME: database
     ports: ["8105:8000"]
+    labels:
+      symphony.id: database
+      symphony.port: "8000"
+      symphony.packages: "npm:pg@8.11.3"

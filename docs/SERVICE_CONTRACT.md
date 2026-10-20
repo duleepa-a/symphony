@@ -2,7 +2,7 @@
 
 This is what a service must expose for SYMPHONY to observe it in real mode (`SYMPHONY_SERVICE_MODE=real`). SYMPHONY only reads. It never calls an endpoint that changes a service.
 
-Each service is reached at `SERVICE_<ID>_URL`, which defaults to `http://localhost:<port>`. IDs and default ports are `frontend` 8100, `auth` 8101, `payment` 8102, `catalog` 8103, `api_gateway` 8104 and `database` 8105. Every request carries an `X-Simulation-Run-Id` header with SYMPHONY's current run ID. Services may log it and must not depend on it.
+Each service is reached at `SERVICE_<ID>_URL`, otherwise at the address found by [service discovery](#service-discovery), otherwise at `http://localhost:<port>` for the default catalog. The default IDs and ports are `frontend` 8100, `auth` 8101, `payment` 8102, `catalog` 8103, `api_gateway` 8104 and `database` 8105. Every request carries an `X-Simulation-Run-Id` header with SYMPHONY's current run ID. Services may log it and must not depend on it.
 
 Requests time out after 3 seconds. A timeout, a refused connection or any other transport error is treated as the service being down.
 
@@ -41,6 +41,50 @@ Each item is one outgoing request this service made. `target_id` is the **SYMPHO
 
 These spans are the only way SYMPHONY learns about undocumented dependencies. A dependency is accepted only when the trace evidence names the exact caller and callee.
 
+## Service discovery
+
+In real mode the registry decides which services exist. Choose a source with `SYMPHONY_DISCOVERY`.
+
+| Value | Source |
+| --- | --- |
+| `static` (default) | The six-service demonstration catalog, at the default ports or `SERVICE_<ID>_URL`. |
+| `file` | A JSON file named by `SYMPHONY_SERVICES_FILE`. |
+| `docker` | Containers carrying `symphony.*` labels, read with the `docker` CLI (running or stopped). |
+
+The registry refreshes on first use and then every `SYMPHONY_DISCOVERY_INTERVAL` seconds (default 30, minimum 1).
+
+**File format**
+
+```json
+{ "services": [
+  { "id": "web", "name": "Storefront", "url": "http://localhost:9001",
+    "depends_on": ["orders"],
+    "packages": [ { "name": "react", "ecosystem": "npm", "version": "18.2.0" } ] },
+  { "id": "orders", "url": "http://localhost:9002" }
+] }
+```
+
+**Docker labels**
+
+| Label | Meaning |
+| --- | --- |
+| `symphony.id` | Service ID. Required. Selects the container. |
+| `symphony.name` | Display name. Defaults to the ID. |
+| `symphony.url` | Address SYMPHONY should call. If absent, built from the published host port. |
+| `symphony.port` | Container port to look up when building the address. |
+| `symphony.depends_on` | Comma-separated IDs of documented dependencies. |
+| `symphony.packages` | Comma-separated `ecosystem:name@version` entries used for the vulnerability scan. |
+
+Rules that apply to every source:
+
+- IDs are lower-cased and anything other than letters, digits and underscores becomes `_` (so `api-gateway` is `api_gateway`). An ID must start with a letter.
+- Duplicate IDs, self-dependencies and dependencies on unknown services are ignored and listed as problems.
+- `SERVICE_<ID>_URL` always overrides a discovered address.
+- A stopped container stays in the graph and reads as `down`, using its last known address.
+- A service with no packages cannot be scanned. The scan fails with `inventory_unavailable` and is never reported as clean.
+- If a refresh fails, the last good topology stays and the dashboard shows the error. If nothing was ever loaded, the graph is empty. The demo catalog is not substituted.
+- Dependencies declared here are shown as documented. Anything else must be discovered from traces.
+
 ## Run and evidence behavior
 
 SYMPHONY keeps its own run ID in real mode.
@@ -62,7 +106,7 @@ SYMPHONY keeps its own run ID in real mode.
 
 ```sh
 docker compose -f reference_stack/docker-compose.yml up --build -d
-SYMPHONY_SERVICE_MODE=real jac start --dev main.jac
+SYMPHONY_SERVICE_MODE=real SYMPHONY_DISCOVERY=docker jac start --dev main.jac
 docker compose -f reference_stack/docker-compose.yml stop auth     # real incident
 docker compose -f reference_stack/docker-compose.yml start auth    # recover
 ```
