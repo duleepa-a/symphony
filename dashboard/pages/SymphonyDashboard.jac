@@ -42,6 +42,7 @@ import from ..models.view_models {
     request_is_current,
     merge_dependencies,
     overview_summary,
+    valid_selection,
     value,
     text
 }
@@ -150,6 +151,14 @@ def:pub SymphonyDashboard -> JsxElement {
                     />
                 </div>}{dashboard
                 and <>
+                    {dashboard.topology_error
+                    and <div className="error-state" role="alert">
+                        <p>{dashboard.topology_error}</p>
+                    </div>}
+                    {not dashboard.services
+                    and <div className="loading-state" role="status">
+                        No services are registered. Check the service discovery settings.
+                    </div>}
                     <SystemOverview
                         summary={overview_summary(dashboard, edges, findings)}
                         run_id={dashboard.simulation_run_id}

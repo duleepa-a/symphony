@@ -1,6 +1,6 @@
 """Graph presentation consumes public dependencies, never the simulator's true graph."""
 import type from ...contracts { Dependency }
-import from ..models.view_models { DependencyView }
+import from ..models.view_models { DependencyView, graph_layout }
 import from ...contracts { Service }
 import from ..molecules.ServiceNode { ServiceNode }
 import from ..molecules.GraphEdge { GraphEdge }
@@ -11,6 +11,18 @@ def:pub DependencyGraph(
     selected_service: str,
     on_select: Callable[[str], None]
 ) -> JsxElement {
+    has hovered: str = "";
+
+    layout = graph_layout(services, dependencies);
+    related = [
+        dependency.target_id
+        for dependency in dependencies
+        if dependency.source_id == hovered
+    ] + [
+        dependency.source_id
+        for dependency in dependencies
+        if dependency.target_id == hovered
+    ];
     return
         <section className="panel graph-panel" aria-labelledby="graph-title">
             <div className="panel-heading">
@@ -25,14 +37,21 @@ def:pub DependencyGraph(
             </div>
             <div
                 className="graph-scroll"
+                style={{"height": f"{layout.height}px"}}
                 tabIndex={0}
                 role="region"
                 aria-label="Service graph; scroll horizontally on smaller screens"
             >
-                <div className="graph-canvas">
+                <div
+                    className="graph-canvas"
+                    style={{
+                        "height": f"{layout.height}px",
+                        "--mh": f"{layout.mobile_height}px"
+                    }}
+                >
                     <svg
                         className="graph-lines"
-                        viewBox="0 0 1000 440"
+                        viewBox={f"0 0 1000 {layout.height}"}
                         preserveAspectRatio="none"
                         aria-hidden="true"
                     >
@@ -62,6 +81,8 @@ def:pub DependencyGraph(
                             <GraphEdge
                                 key={f"{dependency.source_id}-{dependency.target_id}"}
                                 dependency={dependency}
+                                layout={layout}
+                                hovered={hovered}
                             /> for dependency in dependencies
                         ]}
                     </svg>
@@ -71,6 +92,11 @@ def:pub DependencyGraph(
                             service={service}
                             selected={service.id == selected_service}
                             on_select={on_select}
+                            position={layout.positions[service.id]}
+                            dim={hovered != ""
+                            and service.id != hovered
+                            and service.id not in related}
+                            on_hover={lambda (service_id: str) { hovered = service_id; }}
                         /> for service in services
                     ]}
                 </div>

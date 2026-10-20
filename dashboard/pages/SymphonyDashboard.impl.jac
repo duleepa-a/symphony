@@ -159,6 +159,10 @@ impl SymphonyDashboard.pollHealth -> None {
         if scope is not None {
             scope.run_id = snapshot.simulation_run_id;
         }
+        keep = valid_selection(snapshot, selected_service);
+        if keep != selected_service {
+            selectService(keep);
+        }
         if failures or changed_with_active_failure {
             await assessAll("page_detection" if first_observation else "health_change");
         } else {
@@ -232,6 +236,10 @@ impl SymphonyDashboard.loadDashboard -> None {
         }
         dashboard = snapshot;
         scope.run_id = snapshot.simulation_run_id;
+        keep = valid_selection(snapshot, selected_service);
+        if keep != selected_service {
+            selectService(keep);
+        }
     } except Exception {
         if ticket == scope.load_request and epoch == scope.generation {
             load_error = "Dashboard state could not be loaded. Check the server and retry.";

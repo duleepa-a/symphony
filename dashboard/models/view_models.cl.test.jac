@@ -336,3 +336,71 @@ test "zero-advisory assessments retain their deterministic source label" {
     assert view.source == "deterministic" and view.findings == [];
     assert security_assessment_view(envelope_fixture(status="completed")).source == "model";
 }
+
+def:pub layout_services(ids: list[str]) -> list[Service] {
+    return [
+        {"id": item, "name": item, "state": "healthy", "inventory": []} as Service
+        for item in ids
+    ];
+}
+
+def:pub link(source: str, target: str) -> DependencyView {
+    return DependencyView(source_id=source, target_id=target, kind="documented");
+}
+
+test "layout places callers left of the services they depend on" {
+    layout = graph_layout(
+        layout_services(["web", "orders", "ledger"]),
+        [link("web", "orders"), link("orders", "ledger")]
+    );
+    assert layout.positions["web"].x_pct < layout.positions["orders"].x_pct;
+    assert layout.positions["orders"].x_pct < layout.positions["ledger"].x_pct;
+    assert layout.height == 440;
+}
+
+test "layout gives every service its own spot and grows with a tall column" {
+    ids = ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "root"];
+    layout = graph_layout(
+        layout_services(ids),
+        [
+            link("root", item)
+            for item in ids
+            if item != "root"
+        ]
+    );
+    spots = [
+        (layout.positions[item].x_pct, layout.positions[item].y_pct) for item in ids
+    ];
+    assert len(set(spots)) == len(ids);
+    assert layout.height > 440;
+    assert layout.mobile_height > 560;
+}
+
+test "layout survives cycles, self links and unknown endpoints" {
+    layout = graph_layout(
+        layout_services(["a", "b"]),
+        [link("a", "b"), link("b", "a"), link("a", "a"), link("a", "ghost")]
+    );
+    assert "a" in layout.positions and "b" in layout.positions;
+    assert "ghost" not in layout.positions;
+}
+
+test "layout of an empty topology is empty" {
+    assert graph_layout([], []).positions == {};
+}
+
+test "selection keeps a known service and falls back to the first one" {
+    snapshot = {
+        "services": layout_services(["web", "orders"]),
+        "dependencies": [],
+        "simulation_run_id": "r"
+    } as DashboardState;
+    assert valid_selection(snapshot, "orders") == "orders";
+    assert valid_selection(snapshot, "payment") == "web";
+    empty = {
+        "services": [],
+        "dependencies": [],
+        "simulation_run_id": "r"
+    } as DashboardState;
+    assert valid_selection(empty, "payment") == "";
+}

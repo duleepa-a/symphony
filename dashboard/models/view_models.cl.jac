@@ -1,6 +1,6 @@
 """Presentation models and defensive decoding at the JSON integration boundary."""
 
-import type from ...contracts { OperationEnvelope, DashboardState, Dependency }
+import type from ...contracts { OperationEnvelope, DashboardState, Dependency, Service }
 
 obj:pub RequestScope {
     has changing: bool = False,
@@ -520,4 +520,119 @@ def:pub recovery_proposal_view(result: OperationEnvelope) -> RecoveryProposalVie
         } as OperationEnvelope
     );
     return view;
+}
+
+obj:pub NodePosition {
+    has x_pct: float = 50.0,
+        y_pct: float = 50.0,
+        mobile_pct: float = 50.0;
+}
+
+obj:pub GraphLayout {
+    has positions: dict[str, NodePosition] = {},
+        height: int = 440,
+        mobile_height: int = 560;
+}
+
+def:pub valid_selection(snapshot: DashboardState, current: str) -> str {
+    ids = [service.id for service in snapshot.services];
+    if current in ids {
+        return current;
+    }
+    return ids[0] if ids else "";
+}
+
+def:pub graph_layout(
+    services: list[Service], dependencies: list[Dependency | DependencyView]
+) -> GraphLayout {
+    # Callers sit left of what they depend on; spacing adapts to the service count.
+    ids = [service.id for service in services];
+    count = len(ids);
+    if count == 0 {
+        return GraphLayout();
+    }
+    ranks = {service_id: 0 for service_id in ids};
+    for attempt in range(count) {
+        changed = False;
+        for link in dependencies {
+            if link.source_id in ranks
+            and link.target_id in ranks
+            and link.source_id != link.target_id {
+                wanted = ranks[link.source_id] + 1;
+                if wanted > ranks[link.target_id] and wanted < count {
+                    ranks[link.target_id] = wanted;
+                    changed = True;
+                }
+            }
+        }
+        if not changed {
+            break;
+        }
+    }
+    max_rank = 0;
+    for service_id in ids {
+        if ranks[service_id] > max_rank {
+            max_rank = ranks[service_id];
+        }
+    }
+    columns: list[list[str]] = [];
+    for rank in range(max_rank + 1) {
+        columns.append([]);
+    }
+    for service_id in ids {
+        columns[ranks[service_id]].append(service_id);
+    }
+    rows: dict[str, float] = {};
+    for rank in range(max_rank + 1) {
+        # Order each column by the average row of the services that call into it.
+        keys: dict[str, float] = {};
+        for service_id in columns[rank] {
+            total = 0.0;
+            callers = 0;
+            for link in dependencies {
+                if link.target_id == service_id and link.source_id in rows {
+                    total += rows[link.source_id];
+                    callers += 1;
+                }
+            }
+            keys[service_id] = total / callers if callers > 0 else 0.5;
+        }
+        ordered: list[str] = [];
+        for service_id in columns[rank] {
+            slot = len(ordered);
+            for (index, placed) in enumerate(ordered) {
+                if keys[service_id] < keys[placed] {
+                    slot = index;
+                    break;
+                }
+            }
+            ordered.insert(slot, service_id);
+        }
+        columns[rank] = ordered;
+        for (index, service_id) in enumerate(ordered) {
+            rows[service_id] = (index + 1) / (len(ordered) + 1);
+        }
+    }
+    tallest = 1;
+    for column in columns {
+        if len(column) > tallest {
+            tallest = len(column);
+        }
+    }
+    height = 84 * tallest + 40 if 84 * tallest + 40 > 440 else 440;
+    positions: dict[str, NodePosition] = {};
+    sequence: list[str] = [service_id for column in columns for service_id in column];
+    for service_id in ids {
+        x_pct = 50.0 if max_rank == 0 else 12.0 + 76.0 * ranks[service_id] / max_rank;
+        positions[service_id] = NodePosition(
+            x_pct=x_pct,
+            y_pct=rows[service_id] * 100.0,
+            mobile_pct=(sequence.index(service_id) + 1) / (count + 1) * 100.0
+        );
+    }
+    return GraphLayout(
+        positions=positions,
+        height=height,
+        mobile_height=70 * count + 40 if 70 * count + 40 > 560 else 560
+    );
 }
