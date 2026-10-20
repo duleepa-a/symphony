@@ -5,10 +5,10 @@ sv {
     import from dataclasses { asdict }
     import from contracts { Evidence, OperationEnvelope, OperationError }
     import from catalog { documented_dependencies }
-    import from simulation.state {
-        sim_dashboard_state,
-        sim_is_current_run,
-        sim_accept_discovered_dependency
+    import from integration.run_context {
+        accept_discovered_dependency,
+        current_dashboard,
+        is_current_run
     }
     import from simulation.diagnostics {
         sim_check_health,
@@ -24,7 +24,6 @@ sv {
     import from integration.service_provider { is_real_mode }
     import from integration.real_provider {
         real_check_health,
-        real_dashboard,
         real_get_logs,
         real_trace_requests
     }
@@ -43,9 +42,7 @@ sv {
         # while reset and other short simulator operations remain available.
         with investigation_lock {
             with simulation_lock {
-                snapshot = real_dashboard()
-                    if is_real_mode()
-                    else sim_dashboard_state();
+                snapshot = current_dashboard();
                 run_id = snapshot.simulation_run_id;
                 context = json.dumps(
                     {
@@ -60,7 +57,7 @@ sv {
                 handler: Callable[[str], OperationEnvelope], service_id: str
             ) -> Evidence {
                 with simulation_lock {
-                    if not sim_is_current_run(run_id) {
+                    if not is_current_run(run_id) {
                         raise RuntimeError("Simulation changed during investigation.");
                     }
                     result = handler(service_id);
@@ -92,7 +89,7 @@ sv {
             configure_diagnostic_tools(health, logs, traces);
             result = runner(context, run_id);
             with simulation_lock {
-                if not sim_is_current_run(run_id) {
+                if not is_current_run(run_id) {
                     return failure(
                         "stale_run",
                         "The simulation changed during investigation. Run it again."
@@ -113,7 +110,7 @@ sv {
                 }
                 known = {
                     (link.source_id, link.target_id)
-                    for link in sim_dashboard_state().dependencies
+                    for link in current_dashboard().dependencies
                 };
                 for link in result.data.get("discovered_dependencies", []) {
                     link["kind"] = "discovered";
@@ -121,7 +118,7 @@ sv {
                     if pair in known {
                         continue;
                     }
-                    accepted = sim_accept_discovered_dependency(
+                    accepted = accept_discovered_dependency(
                         link["source_id"], link["target_id"], link["evidence_ids"]
                     );
                     if accepted.status != "completed" {

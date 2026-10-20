@@ -7,7 +7,7 @@ sv {
     import from integration.agent_ports { AgentPorts, AgentSession, graph_key }
     import from integration.result_store { result_store, result_lock }
     import from integration.simulation_adapter { simulation_lock }
-    import from simulation.state { sim_dashboard_state }
+    import from integration.run_context { current_dashboard }
     import from simulation.impact { sim_analyze_impact }
 
     def agent_failure(code: str, message: str) -> OperationEnvelope {
@@ -16,7 +16,7 @@ sv {
         );
     }
     def current(run_id: str) -> bool {
-        return sim_dashboard_state().simulation_run_id == run_id;
+        return current_dashboard().simulation_run_id == run_id;
     }
     def advisory_packages(scan: OperationEnvelope) -> dict[str, list[str]] {
         records: dict[str, list[str]] = {};
@@ -35,7 +35,7 @@ sv {
     }
     def security_analysis(service_id: str, ports: AgentPorts) -> OperationEnvelope {
         with simulation_lock {
-            snapshot = sim_dashboard_state();
+            snapshot = current_dashboard();
             run_id = snapshot.simulation_run_id;
             with result_lock {
                 result_store.sync(run_id);
@@ -215,7 +215,7 @@ sv {
             data["priority_below_rule_based"] = priorities[priority] < priorities[rule];
             data["scan_status"] = scan.status;
             data["_input_revision"] = revision;
-            if graph_key(sim_dashboard_state().dependencies) != graph_key(
+            if graph_key(current_dashboard().dependencies) != graph_key(
                 snapshot.dependencies
             ) {
                 return agent_failure(
@@ -237,7 +237,7 @@ sv {
     }
     def recovery_analysis(ports: AgentPorts) -> OperationEnvelope {
         with simulation_lock {
-            snapshot = sim_dashboard_state();
+            snapshot = current_dashboard();
             run_id = snapshot.simulation_run_id;
             with result_lock {
                 result_store.sync(run_id);

@@ -9,7 +9,7 @@ import from contextvars { ContextVar }
 import from copy { deepcopy }
 import from contracts { AssessedFinding }
 import from simulation.impact { sim_analyze_impact }
-import from simulation.state { sim_dashboard_state, sim_is_current_run }
+import from integration.run_context { current_dashboard, is_current_run }
 
 obj SecurityJudgment {
     has findings: list[AssessedFinding] = [],
@@ -61,7 +61,7 @@ def security_tool_timeline -> list[str] {
 }
 
 def _record(label: str) {
-    if not sim_is_current_run(get_security_session().run_id) {
+    if not is_current_run(get_security_session().run_id) {
         raise RuntimeError("Simulation changed during security analysis.");
     }
     get_security_session().tool_timeline.append(label);
@@ -141,7 +141,7 @@ def get_known_dependencies_tool -> dict[str, any] {
                 "target_id": link.target_id,
                 "kind": link.kind,
 
-            } for link in sim_dashboard_state().dependencies
+            } for link in current_dashboard().dependencies
         ]
     };
 }

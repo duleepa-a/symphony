@@ -11,7 +11,7 @@ import from copy { deepcopy }
 import from catalog { initial_services }
 import from simulation.impact { sim_analyze_impact }
 import from simulation.recovery { sim_list_repair_options, sim_preview_repair }
-import from simulation.state { sim_is_current_run }
+import from integration.run_context { is_current_run }
 
 obj RecoveryChoice {
     has target_service_id: str,
@@ -64,7 +64,7 @@ def recovery_tool_timeline -> list[str] {
 }
 
 def _record(label: str) {
-    if not sim_is_current_run(get_recovery_session().run_id) {
+    if not is_current_run(get_recovery_session().run_id) {
         raise RuntimeError("Simulation changed during recovery analysis.");
     }
     get_recovery_session().tool_timeline.append(label);
