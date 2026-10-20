@@ -5,7 +5,7 @@ import urllib.error;
 import urllib.parse;
 import urllib.request;
 import from contracts { OperationEnvelope, OperationError, PackageInventoryItem, }
-import from catalog { initial_services }
+import from topology { topology_services }
 import from .normalization {
     OsvFinding,
     PackageScanResult,
@@ -79,7 +79,7 @@ def get_osv_advisory(advisory_id: str) -> dict[str, any] {
 }
 
 def inventory_for_service(service_id: str) -> list[PackageInventoryItem] | None {
-    for service in initial_services() {
+    for service in topology_services() {
         if service.id == service_id {
             return service.inventory;
         }
@@ -213,6 +213,15 @@ def scan_service_dependencies_impl(service_id: str) -> OperationEnvelope {
             status="failed",
             error=OperationError(
                 code="unknown_service", message=f"Unknown service ID: {service_id}",
+            ),
+        );
+    }
+    if len(inventory) == 0 {
+        return OperationEnvelope(
+            status="failed",
+            error=OperationError(
+                code="inventory_unavailable",
+                message="No package inventory is known for this service, so nothing was scanned. This is not a clean result.",
             ),
         );
     }

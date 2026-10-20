@@ -8,7 +8,7 @@ fault or the private graph.
 
 import from contextvars { ContextVar }
 import from copy { deepcopy }
-import from catalog { initial_services }
+import from topology { topology_ids }
 import from simulation.impact { sim_analyze_impact }
 import from simulation.recovery { sim_list_repair_options, sim_preview_repair }
 import from integration.run_context { is_current_run }
@@ -149,5 +149,5 @@ sem preview_repair_tool.service_id = "Stable service ID to repair.";
 sem preview_repair_tool.action = "One action returned by list_repair_options.";
 
 def known_service_ids -> list[str] {
-    return [service.id for service in initial_services()];
+    return topology_ids();
 }

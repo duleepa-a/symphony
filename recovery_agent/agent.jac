@@ -2,7 +2,7 @@
 
 import json;
 import from dataclasses { asdict }
-import from catalog { documented_dependencies }
+import from topology { topology_dependencies }
 import from contracts { OperationEnvelope }
 import from agent_support.models {
     agent_failure,
@@ -51,7 +51,7 @@ def _incident_context -> str {
         {
             "services": [asdict(service) for service in snapshot.services],
             "documented_dependencies": [
-                asdict(link) for link in documented_dependencies()
+                asdict(link) for link in topology_dependencies()
             ],
 
         }
