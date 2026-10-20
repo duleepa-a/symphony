@@ -82,6 +82,10 @@ State flows down through typed props; actions flow up through callbacks. Result 
 
 **Run full assessment** performs investigation, scans all six service inventories with OSV, runs a security assessment for each scan, and shows an all-service advisory/high-severity summary. Detailed impact and recovery results focus on the selected or most likely failed service. The dashboard also polls health every 10 seconds and starts the same workflow when it observes a new failure or another state change while failures remain. Identical automatic requests are deduplicated server-side to avoid repeated model calls.
 
+### Real-service mode
+
+Set `SYMPHONY_SERVICE_MODE=real` to observe actual services instead of the simulator. Services must follow the [service contract](docs/SERVICE_CONTRACT.md); `reference_stack/` provides a six-service Docker Compose stack that does. In this mode SYMPHONY keeps its own run ID, which changes only when observed service states change, and a bounded evidence store (`SYMPHONY_EVIDENCE_LIMIT`). Accepted dependency discoveries are still held in the simulator's graph state until persistence is added, and the Recovery agent's repair preview is still simulator-based (see the known gaps in `docs/SERVICE_CONTRACT.md`).
+
 In real-service mode, impact combines the known dependency graph with observed container health. Recovery is intentionally non-mutating: it recommends an action and returns `not_applied` with the observed before-state unchanged until an operator acts and health is polled again. Mock mode retains deterministic before/after simulation.
 
 External monitoring can start the workflow through the public Jac function endpoint:
@@ -99,7 +103,7 @@ Set `SYMPHONY_WEBHOOK_TOKEN` to require the matching token. In real-service mode
 The client model suite must remain at `dashboard/models/view_models.cl.test.jac`: Jac 0.34.19’s Bun runner emits a standalone test harness without compiling its relative client-module dependencies. Moving the suite to `tests/` was verified to fail all nine cases with `Cannot find module '../dashboard/models/view_models.js'`. The matching annex filename is required; its test cases use descriptive names without ownership prefixes. Standalone suites and preview helpers in `tests/` use descriptive filenames.
 
 ```sh
-for suite in tests/feature_integration_tests.jac tests/agent_integration_tests.jac \
+for suite in tests/real_runtime_tests.jac tests/feature_integration_tests.jac tests/agent_integration_tests.jac \
   tests/agent_workflow_tests.jac tests/dashboard_integration_tests.jac \
   dashboard/models/view_models.cl.jac recovery_agent/agent.jac \
   recovery_agent/validation.jac security_analyst/agent.jac \

@@ -8,7 +8,7 @@ import from agent_support.models {
     make_agent_model
 }
 import from simulation.impact { sim_analyze_impact }
-import from simulation.state { sim_is_current_run }
+import from integration.run_context { is_current_run }
 import from .tools {
     SecurityJudgment,
     advisories_in,
@@ -52,7 +52,7 @@ def run_security_analysis_with(
     scan: OperationEnvelope,
     run_id: str,
 ) -> OperationEnvelope {
-    if not sim_is_current_run(run_id) {
+    if not is_current_run(run_id) {
         return agent_failure("stale_run", "The simulation changed. Run it again.");
     }
     scan_status = scan.status;
@@ -102,7 +102,7 @@ def run_security_analysis_with(
                 "A read-only diagnostic tool failed during this session."
             );
         }
-        if not sim_is_current_run(run_id) {
+        if not is_current_run(run_id) {
             return agent_failure(
                 "stale_run", "The simulation changed during the security analysis."
             );

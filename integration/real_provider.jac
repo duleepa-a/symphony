@@ -19,8 +19,12 @@ sv {
         Service
     }
     import from integration.service_provider { get_service_mode }
+    import from integration.real_store {
+        current_real_run_id,
+        issue_real_evidence_record,
+        observe_real_states
+    }
     import from simulation.state {
-        sim_state,
         is_known_service,
         known_dependencies,
         unknown_service
@@ -50,15 +54,7 @@ sv {
     def issue_real_evidence(
         tool: str, service_id: str, observation: dict[str, any]
     ) -> OperationEnvelope {
-        sim_state.evidence_counter += 1;
-        evidence = Evidence(
-            id=f"{sim_state.simulation_run_id}-ev-{sim_state.evidence_counter}",
-            tool=tool,
-            service_id=service_id,
-            observation=observation,
-            simulation_run_id=sim_state.simulation_run_id
-        );
-        sim_state.evidence_log[evidence.id] = evidence;
+        evidence = issue_real_evidence_record(tool, service_id, observation);
         return OperationEnvelope(
             status="completed",
             data={
@@ -112,14 +108,11 @@ sv {
         }
     }
 
-    def real_check_health(service_id: str) -> OperationEnvelope {
-        if not is_known_service(service_id) {
-            return unknown_service(service_id);
-        }
+    def probe_health(service_id: str) -> dict[str, any] {
+        # Observe a service without recording evidence; used by dashboard polling.
         base_url = get_service_base_url(service_id);
         url = f"{base_url}/health";
-        run_id = sim_state.simulation_run_id;
-        res = http_get_json(url, run_id);
+        res = http_get_json(url, current_real_run_id());
         status_code = res["status"];
         payload = res["payload"];
         latency_ms = res["latency_ms"];
@@ -130,22 +123,28 @@ sv {
         state = "down" if down else ("degraded" if degraded else "healthy");
         error_rate = 100 if down else (25 if degraded else 0);
 
-        observation: dict[str, any] = {
+        return {
             "state": state,
             "http_status": status_code,
             "error_rate_pct": error_rate,
             "latency_ms": None if down else latency_ms,
             "message": payload.get("message", f"{service_id} state is {state}")
         };
-        return issue_real_evidence("check_service_health", service_id, observation);
+    }
+
+    def real_check_health(service_id: str) -> OperationEnvelope {
+        if not is_known_service(service_id) {
+            return unknown_service(service_id);
+        }
+        return issue_real_evidence(
+            "check_service_health", service_id, probe_health(service_id)
+        );
     }
 
     def real_dashboard -> DashboardState {
         services: list[Service] = [];
         for service in initial_services() {
-            result = real_check_health(service.id);
-            observation = result.data.get("observation", {});
-            state = observation.get("state", "down");
+            state = probe_health(service.id).get("state", "down");
             services.append(
                 Service(
                     id=service.id,
@@ -178,6 +177,9 @@ sv {
             ]
         );
         dependencies = known_dependencies();
+        run_id = observe_real_states(
+            {service.id: service.state for service in services}
+        );
         return DashboardState(
             services=services,
             dependencies=dependencies,
@@ -195,7 +197,7 @@ sv {
                 ),
                 vulnerability_findings=0
             ),
-            simulation_run_id=sim_state.simulation_run_id,
+            simulation_run_id=run_id,
             service_mode=get_service_mode()
         );
     }
@@ -206,7 +208,7 @@ sv {
         }
         base_url = get_service_base_url(service_id);
         url = f"{base_url}/logs";
-        run_id = sim_state.simulation_run_id;
+        run_id = current_real_run_id();
         res = http_get_json(url, run_id);
         status_code = res["status"];
         payload = res["payload"];
@@ -235,7 +237,7 @@ sv {
         }
         base_url = get_service_base_url(service_id);
         url = f"{base_url}/traces";
-        run_id = sim_state.simulation_run_id;
+        run_id = current_real_run_id();
         res = http_get_json(url, run_id);
         status_code = res["status"];
         payload = res["payload"];

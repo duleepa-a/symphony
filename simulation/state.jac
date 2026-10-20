@@ -177,8 +177,12 @@ def sim_reset -> OperationEnvelope {
     );
 }
 
-def sim_accept_discovered_dependency(
-    source_id: str, target_id: str, evidence_ids: list[str]
+def accept_dependency(
+    source_id: str,
+    target_id: str,
+    evidence_ids: list[str],
+    lookup: Callable[[str], Evidence | None],
+    run_id: str
 ) -> OperationEnvelope {
     if not is_known_service(source_id) {
         return unknown_service(source_id);
@@ -197,23 +201,20 @@ def sim_accept_discovered_dependency(
         }
     }
     for evidence_id in evidence_ids {
-        evidence = sim_state.evidence_log.get(evidence_id);
+        evidence = lookup(evidence_id);
         if evidence is None {
             return failure(
                 "unknown_or_stale_evidence",
                 f"Evidence '{evidence_id}' is not part of the active simulation run."
             );
         }
-        if evidence.tool != "trace_requests"
-        or evidence.simulation_run_id != sim_state.simulation_run_id {
+        if evidence.tool != "trace_requests" or evidence.simulation_run_id != run_id {
             return failure(
                 "unsupported_evidence",
                 f"Evidence '{evidence_id}' is not runtime request-trace evidence for this run."
             );
         }
-        if not trace_supports(
-            evidence, source_id, target_id, sim_state.simulation_run_id
-        ) {
+        if not trace_supports(evidence, source_id, target_id, run_id) {
             return failure(
                 "evidence_does_not_support_edge",
                 "Every cited trace must show an observed request between these services."
@@ -228,4 +229,16 @@ def sim_accept_discovered_dependency(
     );
     sim_state.discovered.append(link);
     return OperationEnvelope(status="completed", data=dependency_dict(link));
+}
+
+def sim_accept_discovered_dependency(
+    source_id: str, target_id: str, evidence_ids: list[str]
+) -> OperationEnvelope {
+    return accept_dependency(
+        source_id,
+        target_id,
+        evidence_ids,
+        sim_state.evidence_log.get,
+        sim_state.simulation_run_id
+    );
 }

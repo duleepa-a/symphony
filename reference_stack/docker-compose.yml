@@ -1,0 +1,52 @@
+# Six services matching Symphony's default catalog and ports (8100-8105).
+# Payment calls Auth although the documented graph does not list that link; the
+# Investigator can only learn it from request traces.
+#
+#   docker compose -f reference_stack/docker-compose.yml up --build -d
+#   docker compose -f reference_stack/docker-compose.yml stop auth    # real incident
+#
+# Admin endpoints are enabled here for demos. Disable them with ADMIN_ENABLED=false.
+x-service: &service
+  build: .
+  restart: unless-stopped
+
+services:
+  frontend:
+    <<: *service
+    environment:
+      SERVICE_NAME: frontend
+      DEPENDS_ON: api_gateway=http://api_gateway:8000
+    ports: ["8100:8000"]
+
+  auth:
+    <<: *service
+    environment:
+      SERVICE_NAME: auth
+    ports: ["8101:8000"]
+
+  payment:
+    <<: *service
+    environment:
+      SERVICE_NAME: payment
+      DEPENDS_ON: database=http://database:8000,auth=http://auth:8000
+    ports: ["8102:8000"]
+
+  catalog:
+    <<: *service
+    environment:
+      SERVICE_NAME: catalog
+      DEPENDS_ON: database=http://database:8000
+    ports: ["8103:8000"]
+
+  api_gateway:
+    <<: *service
+    environment:
+      SERVICE_NAME: api_gateway
+      DEPENDS_ON: payment=http://payment:8000,catalog=http://catalog:8000
+    ports: ["8104:8000"]
+
+  database:
+    <<: *service
+    environment:
+      SERVICE_NAME: database
+    ports: ["8105:8000"]

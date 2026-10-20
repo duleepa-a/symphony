@@ -10,7 +10,7 @@ import from agent_support.models {
     make_agent_model
 }
 import from simulation.recovery { sim_list_repair_options, sim_preview_repair }
-import from simulation.state { sim_dashboard_state, sim_is_current_run }
+import from integration.run_context { current_dashboard, is_current_run }
 import from .tools {
     RecoveryChoice,
     begin_recovery_session,
@@ -46,7 +46,7 @@ sem choose_recovery_impl.incident_context = "Documented topology and visible ser
 sem choose_recovery_impl.active_run_id = "The current simulation run ID. Anything from another run is stale.";
 
 def _incident_context -> str {
-    snapshot = sim_dashboard_state();
+    snapshot = current_dashboard();
     return json.dumps(
         {
             "services": [asdict(service) for service in snapshot.services],
@@ -59,7 +59,7 @@ def _incident_context -> str {
 }
 
 def _incident_is_active -> bool {
-    for service in sim_dashboard_state().services {
+    for service in current_dashboard().services {
         if service.state != "healthy" {
             return True;
         }
@@ -78,7 +78,7 @@ def run_recovery_with(
             "Run the investigation before asking for a recovery proposal."
         );
     }
-    if not sim_is_current_run(run_id) {
+    if not is_current_run(run_id) {
         return agent_failure("stale_run", "The simulation changed. Run it again.");
     }
     if not _incident_is_active() {
@@ -96,7 +96,7 @@ def run_recovery_with(
                 "A read-only diagnostic tool failed during this session."
             );
         }
-        if not sim_is_current_run(run_id) {
+        if not is_current_run(run_id) {
             return agent_failure(
                 "stale_run", "The simulation changed during the recovery analysis."
             );
