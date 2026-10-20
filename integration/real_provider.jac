@@ -10,7 +10,8 @@ sv {
     import urllib.request;
     import urllib.error;
 
-    import from catalog { initial_services }
+    import from topology { topology_services, topology_url }
+    import from integration.registry { ensure_registry, registry_status }
     import from contracts {
         DashboardState,
         DashboardSummary,
@@ -47,8 +48,15 @@ sv {
         if custom {
             return custom.rstrip("/");
         }
-        port = DEFAULT_SERVICE_PORTS.get(service_id, 8100);
-        return f"http://localhost:{port}";
+        discovered = topology_url(service_id);
+        if discovered {
+            return discovered;
+        }
+        if service_id not in DEFAULT_SERVICE_PORTS {
+            # No known address: probes fail and the service reads as down.
+            return "";
+        }
+        return f"http://localhost:{DEFAULT_SERVICE_PORTS[service_id]}";
     }
 
     def issue_real_evidence(
@@ -142,8 +150,10 @@ sv {
     }
 
     def real_dashboard -> DashboardState {
+        ensure_registry();
+        registry = registry_status();
         services: list[Service] = [];
-        for service in initial_services() {
+        for service in topology_services() {
             state = probe_health(service.id).get("state", "down");
             services.append(
                 Service(
@@ -198,7 +208,9 @@ sv {
                 vulnerability_findings=0
             ),
             simulation_run_id=run_id,
-            service_mode=get_service_mode()
+            service_mode=get_service_mode(),
+            topology_source=registry["source"],
+            topology_error=registry["error"]
         );
     }
 
