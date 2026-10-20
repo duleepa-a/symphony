@@ -15,7 +15,8 @@ import from contracts {
     Evidence
 }
 import from integration.evidence { trace_supports }
-import from catalog { initial_services, documented_dependencies }
+import from catalog { initial_services }
+import from topology { topology_dependencies, topology_has }
 import from simulation.incidents {
     INCIDENT_FAULT_KINDS,
     INCIDENT_ROOT_FAULTS,
@@ -44,12 +45,7 @@ def failure(code: str, message: str) -> OperationEnvelope {
 }
 
 def is_known_service(service_id: str) -> bool {
-    for service in initial_services() {
-        if service.id == service_id {
-            return True;
-        }
-    }
-    return False;
+    return topology_has(service_id);
 }
 
 def unknown_service(service_id: str) -> OperationEnvelope {
@@ -92,7 +88,7 @@ def service_dicts(states: dict[str, str]) -> list[dict[str, str]] {
 }
 
 def known_dependencies -> list[Dependency] {
-    return documented_dependencies() + sim_state.discovered;
+    return topology_dependencies() + sim_state.discovered;
 }
 
 def dependency_dict(link: Dependency) -> dict[str, any] {

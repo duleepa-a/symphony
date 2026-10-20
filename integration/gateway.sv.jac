@@ -8,6 +8,7 @@ sv {
         Dependency
     }
     import from catalog { initial_dashboard_state }
+    import from topology { topology_ids }
     import from integration.ports { get_ports }
 
     import from integration.evidence { supports_dependency }
@@ -15,15 +16,6 @@ sv {
     import from integration.simulation_adapter { simulation_lock }
     import from integration.agent_ports { graph_key }
     import from integration.result_store { result_store, result_lock }
-
-    glob SERVICE_IDS = [
-             "frontend",
-             "api_gateway",
-             "payment",
-             "catalog",
-             "auth",
-             "database"
-         ];
 
     def failure(code: str, message: str, status: str = "failed") -> OperationEnvelope {
         return OperationEnvelope(
@@ -54,8 +46,8 @@ sv {
             source = field(dependency, "source_id", "");
             target = field(dependency, "target_id", "");
             if not ids
-            or source not in SERVICE_IDS
-            or target not in SERVICE_IDS
+            or source not in topology_ids()
+            or target not in topology_ids()
             or source == target {
                 return False;
             }
@@ -81,10 +73,8 @@ sv {
 
     def invoke(operation: str, arguments: dict[str, any]) -> OperationEnvelope {
         service = arguments.get("service_id");
-        if service is not None and service not in SERVICE_IDS {
-            return failure(
-                "invalid_service", "Select one of the six documented services."
-            );
+        if service is not None and service not in topology_ids() {
+            return failure("invalid_service", "Select one of the known services.");
         }
         if operation == "start_incident"
         and arguments.get("incident_id") not in [

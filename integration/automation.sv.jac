@@ -5,20 +5,12 @@ sv {
     import from threading { RLock }
     import from contracts { DashboardState, OperationEnvelope, OperationError }
     import from integration.gateway { read_dashboard, invoke }
+    import from topology { topology_ids }
 
     glob assessment_lock = RLock(),
          assessment_sequence: int = 0,
          last_automatic_signature: str = "",
          latest_assessment: OperationEnvelope | None = None;
-
-    glob SERVICE_IDS = [
-             "frontend",
-             "api_gateway",
-             "payment",
-             "catalog",
-             "auth",
-             "database"
-         ];
 
     def pack(result: OperationEnvelope) -> dict[str, any] {
         return {
@@ -65,12 +57,12 @@ sv {
         trigger: str = "manual", service_id: str = "", force: bool = False
     ) -> OperationEnvelope {
         with assessment_lock {
-            if service_id and service_id not in SERVICE_IDS {
+            if service_id and service_id not in topology_ids() {
                 return OperationEnvelope(
                     status="failed",
                     error=OperationError(
                         code="invalid_service",
-                        message="Select one of the six documented services."
+                        message="Select one of the known services."
                     )
                 );
             }
@@ -231,12 +223,11 @@ sv {
                 )
             );
         }
-        if service_id not in SERVICE_IDS {
+        if service_id not in topology_ids() {
             return OperationEnvelope(
                 status="failed",
                 error=OperationError(
-                    code="invalid_service",
-                    message="Select one of the six documented services."
+                    code="invalid_service", message="Select one of the known services."
                 )
             );
         }

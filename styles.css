@@ -103,18 +103,12 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--cyan); out
 .graph-lines path { fill: none; stroke: #98a2b3; stroke-dasharray: 5 5; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .graph-lines marker path { fill: #667085; stroke: none; }
 .signal-rail { background: linear-gradient(90deg, transparent, rgba(62, 91, 246, 0.25), transparent); height: 1px; left: 7%; position: absolute; top: 50%; width: 86%; }
-.service-node { align-items: center; background: var(--ink-900); border: 1px solid var(--line-bright); display: flex; gap: 11px; min-width: 130px; padding: 13px 14px; position: absolute; transform: translate(-50%, -50%); }
+.service-node { left: var(--x, 50%); top: var(--y, 50%); align-items: center; background: var(--ink-900); border: 1px solid var(--line-bright); display: flex; gap: 11px; min-width: 130px; padding: 13px 14px; position: absolute; transform: translate(-50%, -50%); }
 .service-node strong { display: block; font-family: var(--display); font-size: 16px; letter-spacing: 0.03em; }
 .service-node small { color: var(--muted); display: block; font-family: var(--mono); font-size: 9px; margin-top: 3px; text-transform: uppercase; }
 .node-state { background: var(--green); border-radius: 50%; box-shadow: 0 0 0 5px rgba(18, 183, 106, 0.12); height: 8px; width: 8px; }
 .state-degraded .node-state { background: var(--amber); }
 .state-down .node-state { background: var(--red); }
-.node-frontend { left: 12%; top: 50%; }
-.node-gateway { left: 38%; top: 50%; }
-.node-payment { left: 65%; top: 24%; }
-.node-catalog { left: 65%; top: 74%; }
-.node-auth { left: 88%; top: 15%; }
-.node-database { left: 88%; top: 74%; }
 .panel-footnote, .helper-text { color: var(--muted); font-size: 11px; line-height: 1.55; margin: 14px 0 0; }
 .field-label { color: var(--muted); display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; margin-bottom: 7px; text-transform: uppercase; }
 select { appearance: none; background: var(--ink-900); border: 1px solid var(--line-bright); color: var(--text); min-height: 42px; padding: 0 36px 0 12px; width: 100%; }
@@ -171,15 +165,9 @@ select { appearance: none; background: var(--ink-900); border: 1px solid var(--l
     .section-heading > p { display: none; }
     .metric-grid { grid-template-columns: repeat(2, 1fr); }
     .metric-card { min-height: 100px; }
-    .graph-canvas { min-height: 560px; }
+    .graph-canvas { min-height: var(--mh, 560px); }
     .graph-lines, .signal-rail { display: none; }
-    .service-node { left: 50%; min-width: 190px; }
-    .node-frontend { top: 10%; }
-    .node-gateway { top: 26%; }
-    .node-payment { left: 27%; top: 45%; }
-    .node-catalog { left: 73%; top: 45%; }
-    .node-auth { left: 27%; top: 66%; }
-    .node-database { left: 73%; top: 66%; }
+    .service-node { left: 50%; top: var(--m, 50%); min-width: 190px; }
     .button-row, .scan-controls, .recovery-grid { grid-template-columns: 1fr; }
     .scan-controls .button { width: 100%; }
 }
@@ -226,12 +214,6 @@ a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cyan); outl
 .service-node[aria-pressed="true"] { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
 .service-node.state-down { border-color: rgba(240,68,56,.6); }
 .service-node.state-degraded { border-color: rgba(245,158,11,.65); }
-.graph-scroll .node-frontend { left: 12%; top: 50%; }
-.graph-scroll .node-gateway { left: 38%; top: 50%; }
-.graph-scroll .node-payment { left: 65%; top: 24%; }
-.graph-scroll .node-catalog { left: 65%; top: 74%; }
-.graph-scroll .node-auth { left: 88%; top: 15%; }
-.graph-scroll .node-database { left: 88%; top: 74%; }
 .relationship-details { color: var(--muted); font-size: 11px; margin-top: 16px; }
 .relationship-details summary { cursor: pointer; padding: 8px 0; }
 .relationship-details small, .relationship-list small, .evidence-list small { display: block; color: var(--muted); font: 10px var(--mono); margin: 4px 0; }
@@ -299,24 +281,6 @@ a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cyan); outl
 .service-node.state-down .node-state { animation: node-alert 1.8s ease-out infinite; }
 @keyframes edge-flow { to { stroke-dashoffset: -24; } }
 @keyframes node-alert { 0% { box-shadow: 0 0 0 0 rgba(240, 68, 56, 0.45); } 100% { box-shadow: 0 0 0 9px rgba(240, 68, 56, 0); } }
-.graph-canvas:has(.service-node[data-service-id="frontend"]:is(:hover, :focus-visible)) .service-node:not([data-service-id="frontend"]):not([data-related~="frontend"]) { opacity: 0.35; }
-.graph-canvas:has(.service-node[data-service-id="frontend"]:is(:hover, :focus-visible)) .dependency-edge:not([data-source="frontend"]):not([data-target="frontend"]) { opacity: 0.15; }
-.graph-canvas:has(.service-node[data-service-id="frontend"]:is(:hover, :focus-visible)) .dependency-edge:is([data-source="frontend"], [data-target="frontend"]) { stroke: var(--cyan); stroke-width: 3; }
-.graph-canvas:has(.service-node[data-service-id="api_gateway"]:is(:hover, :focus-visible)) .service-node:not([data-service-id="api_gateway"]):not([data-related~="api_gateway"]) { opacity: 0.35; }
-.graph-canvas:has(.service-node[data-service-id="api_gateway"]:is(:hover, :focus-visible)) .dependency-edge:not([data-source="api_gateway"]):not([data-target="api_gateway"]) { opacity: 0.15; }
-.graph-canvas:has(.service-node[data-service-id="api_gateway"]:is(:hover, :focus-visible)) .dependency-edge:is([data-source="api_gateway"], [data-target="api_gateway"]) { stroke: var(--cyan); stroke-width: 3; }
-.graph-canvas:has(.service-node[data-service-id="payment"]:is(:hover, :focus-visible)) .service-node:not([data-service-id="payment"]):not([data-related~="payment"]) { opacity: 0.35; }
-.graph-canvas:has(.service-node[data-service-id="payment"]:is(:hover, :focus-visible)) .dependency-edge:not([data-source="payment"]):not([data-target="payment"]) { opacity: 0.15; }
-.graph-canvas:has(.service-node[data-service-id="payment"]:is(:hover, :focus-visible)) .dependency-edge:is([data-source="payment"], [data-target="payment"]) { stroke: var(--cyan); stroke-width: 3; }
-.graph-canvas:has(.service-node[data-service-id="catalog"]:is(:hover, :focus-visible)) .service-node:not([data-service-id="catalog"]):not([data-related~="catalog"]) { opacity: 0.35; }
-.graph-canvas:has(.service-node[data-service-id="catalog"]:is(:hover, :focus-visible)) .dependency-edge:not([data-source="catalog"]):not([data-target="catalog"]) { opacity: 0.15; }
-.graph-canvas:has(.service-node[data-service-id="catalog"]:is(:hover, :focus-visible)) .dependency-edge:is([data-source="catalog"], [data-target="catalog"]) { stroke: var(--cyan); stroke-width: 3; }
-.graph-canvas:has(.service-node[data-service-id="auth"]:is(:hover, :focus-visible)) .service-node:not([data-service-id="auth"]):not([data-related~="auth"]) { opacity: 0.35; }
-.graph-canvas:has(.service-node[data-service-id="auth"]:is(:hover, :focus-visible)) .dependency-edge:not([data-source="auth"]):not([data-target="auth"]) { opacity: 0.15; }
-.graph-canvas:has(.service-node[data-service-id="auth"]:is(:hover, :focus-visible)) .dependency-edge:is([data-source="auth"], [data-target="auth"]) { stroke: var(--cyan); stroke-width: 3; }
-.graph-canvas:has(.service-node[data-service-id="database"]:is(:hover, :focus-visible)) .service-node:not([data-service-id="database"]):not([data-related~="database"]) { opacity: 0.35; }
-.graph-canvas:has(.service-node[data-service-id="database"]:is(:hover, :focus-visible)) .dependency-edge:not([data-source="database"]):not([data-target="database"]) { opacity: 0.15; }
-.graph-canvas:has(.service-node[data-service-id="database"]:is(:hover, :focus-visible)) .dependency-edge:is([data-source="database"], [data-target="database"]) { stroke: var(--cyan); stroke-width: 3; }
 
 .node-focus { background: var(--ink-950); border: 1px solid var(--line); margin-top: 16px; padding: 14px 16px; }
 .node-focus-title { align-items: center; display: flex; flex-wrap: wrap; font-size: 14px; gap: 10px; margin: 6px 0 4px; }
@@ -346,3 +310,8 @@ a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cyan); outl
 .service-risk-summary { border: 1px solid var(--line); margin: 18px 0; padding: 0 16px 12px; }
 .service-risk-summary h3 { margin-bottom: 4px; }
 .high-risk-count { color: var(--red-ink); font-weight: 700; }
+
+/* Hover tracing works for any service through state classes, not per-ID rules. */
+.service-node.is-dim { opacity: 0.35; }
+.graph-lines .edge-dim { opacity: 0.15; }
+.graph-lines .edge-active { stroke: var(--cyan); stroke-width: 3; }

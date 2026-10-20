@@ -35,7 +35,9 @@ obj DashboardState {
         dependencies: list[Dependency] = [],
         summary: DashboardSummary = DashboardSummary(),
         simulation_run_id: str = "initial",
-        service_mode: str = "mock";
+        service_mode: str = "mock",
+        topology_source: str = "catalog",
+        topology_error: str = "";
 }
 
 obj OperationError {

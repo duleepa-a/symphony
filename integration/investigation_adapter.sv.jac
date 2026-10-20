@@ -4,7 +4,7 @@ sv {
     import from threading { RLock }
     import from dataclasses { asdict }
     import from contracts { Evidence, OperationEnvelope, OperationError }
-    import from catalog { documented_dependencies }
+    import from topology { topology_dependencies }
     import from integration.run_context {
         accept_discovered_dependency,
         current_dashboard,
@@ -48,7 +48,7 @@ sv {
                     {
                         "services": [asdict(service) for service in snapshot.services],
                         "documented_dependencies": [
-                            asdict(link) for link in documented_dependencies()
+                            asdict(link) for link in topology_dependencies()
                         ]
                     }
                 );
